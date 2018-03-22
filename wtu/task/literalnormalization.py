@@ -295,21 +295,42 @@ class NumericParser:
 
 class LiteralNormalization(Task):
     def __init__(self):
+        # instantiate parsers
         self.date_parser = DateParser()
         self.unit_parser = UnitParser()
+        self.numeric_parser = NumericParser()
 
     def run(self, table: Table):
+        # iterate over all cells
         for cell in table.cells():
-            for date_hypo in self.date_parser.parse(cell.content):
-                cell.annotations.append({
-                    'source': 'LiteralNormalization',
-                    'type': 'date',
-                    **date_hypo
-                })
+            # identify values with units
+            unit_hypos = self.unit_parser.parse(cell.content)
+            if unit_hypos:
+                for unit_hypo in unit_hypos:
+                    cell.annotations.append({
+                        'source': 'LiteralNormalization',
+                        'type': 'value and unit',
+                        **unit_hypo
+                    })
+                continue
 
-            for unit_hypo in self.unit_parser.parse(cell.content):
+            # identify dates
+            date_hypos = self.date_parser.parse(cell.content)
+            if date_hypos:
+                for date_hypo in date_hypos:
+                    cell.annotations.append({
+                        'source': 'LiteralNormalization',
+                        'type': 'date',
+                        **date_hypo
+                    })
+                continue
+
+            # identify numbers
+            number = self.numeric_parser.parse(cell.content)
+            if number is not None:
                 cell.annotations.append({
                     'source': 'LiteralNormalization',
-                    'type': 'value and unit',
-                    **unit_hypo
+                    'type': 'numeric',
+                    'number': number,
                 })
+                continue
