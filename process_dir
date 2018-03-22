@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+
+# generic logging function
+log() {
+	local lvl=$1; shift
+	local msg=$1; shift
+
+	printf "%s [%s] ${msg}\n" \
+		"$(date +'%x %X')" \
+		"${lvl}" \
+		"${@}" \
+	>&2
+}
+
+# log levels
+info()  { log 'INFO'  "${@}";         }
+warn()  { log 'WARN'  "${@}";         }
+error() { log 'ERROR' "${@}";         }
+fatal() { log 'FATAL' "${@}"; exit 1; }
+
+# check if some command exists
+chk_command() {
+	local cmd=$1
+	command -v "${cmd}" 2>&1 >/dev/null
+}
+
+# extract gziped tar with gziped json files (like in WDC corpus)
+untgz() {
+	tar --extract --ungzip --to-stdout | zcat
+}
+
+# use pv to read a file (or stdin) and output a progress bar
+pv_bytes() {
+	local file="${1:--}"
+
+	pv \
+		--delay-start 5 \
+		--cursor \
+		--name 'bytes in' \
+		"${file}"
+}
+
+# use pv to read a file (or stdin) and output a progress bar
+# (line mode)
+pv_lines() {
+	local file="${1:--}"
+	pv \
+		--delay-start 5 \
+		--cursor \
+		--name 'lines in' \
+		--line-mode \
+		--bytes \
+		--average-rate \
+		"${file}"
+}
+
+# check number of command line arguments
+if [ $# -ne 3 ]; then
+	printf 'usage: %s <config> <input dir> <output dir>\n' \
+		"$(basename -- "${0}")"
+	cat <<EOT
+
+Read all files from <input dir>, pipe their contents one by one to wtu.py,
+gzip the output and write it to a new file in <output dir>.
+EOT
+	exit
+fi
+
+run_cmd='./wtu.py' # the command to run for each input file
+run_args="${1}"    # arguments for $run_cmd
+in_dir="${2}"      # input files are read from this directory
+out_dir="${3}"     # output files are written to this directory
+
+# does $in_dir exist?
+if [ ! -d "${in_dir}" ]; then
+	fatal 'Invalid input directory "%s"!' "${in_dir}"
+fi
+# create $out_dir if it does not exist, die on errors
+if [ ! -d "${out_dir}" ]; then
+	mkdir -p "${out_dir}" ||
+		fatal 'Could not create output directory "%s"!' "${out_dir}"
+fi
+if [ "${in_dir}" == "${out_dir}" ]; then
+	fatal 'Input directory and output directory can not be the same!'
+fi
+
+
+# check for required dependencies
+declare -A deps
+deps['tar']='extract tar archives'
+deps['zcat']='uncompress compressed json files'
+deps['gzip']='compress output files'
+deps['./wtu.py']='the main script'
+
+for cmd in "${!deps[@]}"; do
+	chk_command "${cmd}" || {
+		fatal 'Missing dependency "%s" (%s). Aborting!' \
+			"${cmd}" \
+			"${deps["${cmd}"]}"
+	}
+done
+
+# check for optional dependencies
+declare -A opt_deps
+opt_deps['pv']='show progress bars while reading files'
+
+for cmd in "${!opt_deps[@]}"; do
+	chk_command "${cmd}" || {
+		warn 'WARN: Missing optional dependency "%s" (%s).' \
+			"${cmd}" \
+			"${opt_deps["${cmd}"]}"
+	}
+done
+
+use_pv='true'
+if ! chk_command 'pv'; then
+	use_pv='false'
+fi
+
+info 'Start processing directory "%s"' "${in_dir}"
+info 'Writing output files to "%s"' "${out_dir}"
+info 'Running "%s %s" for each file' "${run_cmd}" "${run_args}"
+
+# iterate over files in $in_dir
+find "${in_dir}" \
+	-maxdepth 1 \
+	-type f \
+|
+while read in_file; do
+	in_file_basename=$(basename "${in_file}")
+
+	# skip files with unknown extension
+	# FIXME: using grep here is ugly...
+	if ! grep -q '\.\(tar\.gz\|json\.gz\|json\)$' <<<"${in_file_basename}"; then
+		warn 'Skipping "%s". Unknown file type.' "${in_file_basename}"
+		continue
+	fi
+
+	# FIXME: using sed here is ugly...
+	in_file_wo_extension=$(sed 's/\.\(tar\.gz\|json\.gz\|json\)$//' <<<"${in_file_basename}")
+	out_file_basename="${in_file_wo_extension}.json.gz"
+	out_file="${out_dir}/${out_file_basename}"
+	info 'Processing IN:"%s" -> OUT:"%s"...' \
+		"${in_file_basename}" \
+		"${out_file_basename}"
+	
+	# decide how to read the file, pipe its contents to $run_cmd,
+	# gzip its output and write to $out_file
+	case "${in_file_basename}" in
+		*.tar.gz)
+			if [ "${use_pv}" == 'true' ]; then
+				pv_bytes "${in_file}" | untgz | pv_lines
+			else
+				untgz < "${in_file}"
+			fi
+		;;
+		*.json.gz)
+			if [ "${use_pv}" == 'true' ]; then
+				pv_bytes "${in_file}" | zcat | pv_lines
+			else
+				zcat "${in_file}"
+			fi
+		;;
+		*.json)
+			if [ "${use_pv}" == 'true' ]; then
+				pv_bytes "${in_file}" | pv_lines
+			else
+				cat "${in_file}"
+			fi
+		;;
+	esac |
+		"${run_cmd}" "${run_args}" | gzip > "${out_file}" || exit
+done
+
+info 'Done processing directory "%s"' "${in_dir}"
