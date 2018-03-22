@@ -34,19 +34,6 @@ class EntityLinkingBackend(metaclass=ABCMeta):
     @abstractmethod
     def query(self, mention): pass
 
-class EntityLinkingBackendDict(EntityLinkingBackend):
-    def __init__(self, dct):
-        self.dct = dct
-
-    def query(self, mention):
-        res = []
-        try:
-            res = self.dct[mention]
-        except KeyError:
-            pass
-
-        return res
-
 class EntityLinkingBackendSQLite(EntityLinkingBackend):
     def __init__(self, db_file):
         self.db_file = db_file
