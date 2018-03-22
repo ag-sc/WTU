@@ -16,8 +16,17 @@ class Table:
         return self.table_data['relation']
 
     @property
-    def annotations(self):
+    def _annotations(self):
         return self.table_data['annotations']
+
+    @property
+    def annotations(self):
+        anno_idx = ':'
+
+        if anno_idx not in self.table_data['annotations']:
+            self.table_data['annotations'][anno_idx] = []
+
+        return self.table_data['annotations'][anno_idx]
 
     def dump(self) -> Dict:
         # clean annotations
@@ -96,12 +105,12 @@ class TableCellSet(QueryableSet[Table, TableCell, Tuple[int, int]]):
     def data(self, idx: Tuple[int, int]) -> Any:
         col_idx, row_idx = idx
         anno_idx = '{:d}:{:d}'.format(col_idx, row_idx)
-        if anno_idx not in self.table.annotations:
-            self.table.annotations[anno_idx] = []
+        if anno_idx not in self.table._annotations:
+            self.table._annotations[anno_idx] = []
 
         return {
             'content': self.table.relation[col_idx][row_idx],
-            'annotations': self.table.annotations[anno_idx],
+            'annotations': self.table._annotations[anno_idx],
         }
 
     def where(self, *conditions: Callable[[TableCell], bool]) -> 'TableCellSet':
@@ -131,12 +140,12 @@ class TableColumnSet(QueryableSet[Table, TableColumn, int]):
 
     def data(self, col_idx: int) -> List[str]:
         anno_idx = '{:d}:'.format(col_idx)
-        if anno_idx not in self.table.annotations:
-            self.table.annotations[anno_idx] = []
+        if anno_idx not in self.table._annotations:
+            self.table._annotations[anno_idx] = []
 
         return {
             'column': self.table.relation[col_idx],
-            'annotations': self.table.annotations[anno_idx],
+            'annotations': self.table._annotations[anno_idx],
         }
 
     def where(self, *conditions: Callable[[TableColumn], bool]) -> 'TableColumnSet':
