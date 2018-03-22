@@ -1,6 +1,8 @@
 from abc import ABCMeta, abstractmethod
 import sqlite3
+import io, csv
 from operator import itemgetter
+from collections import defaultdict
 
 from wtu.task import Task
 from wtu.table import Table
@@ -55,3 +57,28 @@ class EntityLinkingBackendSQLite(EntityLinkingBackend):
     def query(self, mention):
         self.cursor.execute(self.select_stmnt, (mention,))
         return self.cursor.fetchall()
+
+# CSV backend
+class EntityLinkingBackendCSV(EntityLinkingBackend):
+    def __init__(self, index_file, delimiter='\t', quotechar=None):
+        # index dictionary
+        self.index = defaultdict(list)
+
+        # read complete `index_file` into the index dictionary
+        with io.open(index_file, 'r', encoding='utf-8', errors='ignore') as index_fh:
+            csv_reader = csv.reader(index_fh, delimiter=delimiter, quotechar=quotechar)
+            for row in csv_reader:
+                mention, uri, frequency = row
+                self.index[mention].append((uri, frequency))
+
+    def query(self, mention):
+        res = []
+        try:
+            res = [
+                (entity[0], int(entity[1]))
+                for entity in self.index[mention]
+            ]
+        except KeyError:
+            pass
+
+        return res
