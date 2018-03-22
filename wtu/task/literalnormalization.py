@@ -269,6 +269,30 @@ class UnitParser:
                     })
         return unit_hypos
 
+# identify numbers
+class NumericParser:
+    # ^                 start of string
+    # [+-]?             optionall '+' or '-'
+    # (                 optional group
+    #   [0-9]*            | zero or more digits 0-9
+    #   [.,]              | '.' or ',' (decimal separator)
+    # )?                  +---
+    # [0-9]+            one or more digits 0-9
+    # (                 optional group
+    #   [Ee]              | upper case or lower case 'e'
+    #   [+-]?             | optional '+' or '-'
+    #   [0-9]+            | one ore more digits 0-9
+    # )?                  +---
+    # $                 end of string
+    numeric_pattern = re.compile('^[+-]?([0-9]*[.,])?[0-9]+([Ee][+-]?[0-9]+)?$')
+
+    def parse(self, string):
+        match = NumericParser.numeric_pattern.match(string)
+        if match:
+            return float(match.group(0).replace(',', '.'))
+        else:
+            return None
+
 class LiteralNormalization(Task):
     def __init__(self):
         self.date_parser = DateParser()
