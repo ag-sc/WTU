@@ -188,3 +188,22 @@ new files in `data/example/out`.
 	[WDC Web Table Corpus](http://webdatacommons.org/webtables/2015/downloadInstructions.html))
 
 other files are ignored.
+
+# `convert_gold.py`
+
+In order to compare our results to a gold standard we need the gold standard's
+annotations to be in the same format as our annotations. This is what
+`convert_gold.py` does.
+
+We use the
+[T2Dv2 Gold Standard for Matching Web Tables to DBpedia](http://www.webdatacommons.org/webtables/goldstandardV2.html).
+
+1. download and extract the gold standard data
+
+		$ curl -LO 'http://www.webdatacommons.org/webtables/extended_instance_goldstandard.tar.gz'
+		$ mkdir gold-v2
+		$ tar -C gold-v2 -xzf extended_instance_goldstandard.tar.gz
+
+2. run conversion and save the output to `gold.json`
+
+		$ ./convert_gold.py gold-v2 > gold.json
