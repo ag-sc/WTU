@@ -1,5 +1,4 @@
 from abc import ABCMeta, abstractmethod
-import sqlite3
 import io, csv
 from operator import itemgetter
 from collections import defaultdict
@@ -70,27 +69,6 @@ class EntityLinkingBackend(metaclass=ABCMeta):
     @abstractmethod
     def query(self, mention): pass
 
-# SQLite backend
-class EntityLinkingBackendSQLite(EntityLinkingBackend):
-    def __init__(self, db_file):
-        # sqlite database file
-        self.db_file = db_file
-
-        # connect to database
-        self.connection = sqlite3.connect(self.db_file)
-        self.cursor = self.connection.cursor()
-
-        # run this query against the database for each invocation
-        # of the `query' method
-        self.select_stmnt = 'SELECT uri, frequency FROM `resource` WHERE mention = ?'
-
-    def query(self, mention):
-        # execute query
-        self.cursor.execute(self.select_stmnt, (mention,))
-
-        # return all matching datasets
-        return self.cursor.fetchall()
-
 # CSV backend
 class EntityLinkingBackendCSV(EntityLinkingBackend):
     def __init__(self, index_file, delimiter='\t', quotechar=None):
@@ -118,4 +96,3 @@ class EntityLinkingBackendCSV(EntityLinkingBackend):
 
 # register backends with the EntityLinking main class
 EntityLinking.register_backend('csv', EntityLinkingBackendCSV)
-EntityLinking.register_backend('sqlite', EntityLinkingBackendSQLite)
