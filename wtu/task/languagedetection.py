@@ -7,8 +7,9 @@ from nltk.corpus import stopwords
 from operator import attrgetter, itemgetter
 
 class LanguageDetection(Task):
-    def __init__(self, top_n=3):
+    def __init__(self, top_n=3, additional_fields=[]):
         self.top_n = top_n
+        self.additional_fields = additional_fields
 
     def run(self, table):
         # concatenate all cell's contents
@@ -18,8 +19,14 @@ class LanguageDetection(Task):
                 table.cells()
             )
         )
+        input_string = cell_content
+        # add text from additional fields
+        for field_name in self.additional_fields:
+            if field_name in table.table_data:
+                input_string += table.table_data[field_name]
+
         # tokenize string and extract lower case words
-        tokens = wordpunct_tokenize(cell_content)
+        tokens = wordpunct_tokenize(input_string)
         words = [word.lower() for word in tokens]
 
         # iterate over all languages in nltk and match their stopwords
