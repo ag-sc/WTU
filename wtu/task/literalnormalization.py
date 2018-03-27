@@ -334,3 +334,5 @@ class LiteralNormalization(Task):
                     'number': number,
                 })
                 continue
+
+        return True

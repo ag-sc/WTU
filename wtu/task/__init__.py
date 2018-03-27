@@ -3,5 +3,5 @@ from wtu.table import Table
 
 class Task(metaclass=ABCMeta):
     @abstractmethod
-    def run(self, table: Table) -> None:
+    def run(self, table: Table) -> bool:
         pass

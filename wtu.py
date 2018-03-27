@@ -70,10 +70,11 @@ def main():
 
                     # run scheduled tasks
                     for task in tasks_scheduled:
-                        task.run(table)
-
-                    # output annotated table as json
-                    print(json.dumps(table.dump()))
+                        if not task.run(table):
+                            break
+                    else:
+                        # output annotated table as json
+                        print(json.dumps(table.dump()))
 
             # ignore JSON decoding errors
             except JSONDecodeError:

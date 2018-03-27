@@ -62,6 +62,8 @@ class EntityLinking(Task):
                     'frequency': normalized_frequency,
                 })
 
+        return True
+
 # EntityLinkingBackend interface
 class EntityLinkingBackend(metaclass=ABCMeta):
     # EntityLinkingBackend's must implement a `query' method
