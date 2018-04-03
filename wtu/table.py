@@ -44,6 +44,9 @@ class Table:
     def columns(self, *conditions: Callable[['TableColumn'], bool]) -> 'TableColumnSet':
         return TableColumnSet(self, *conditions)
 
+    def rows(self, *conditions: Callable[['TableRow'], bool]) -> 'TableRowSet':
+        return TableRowSet(self, *conditions)
+
 I_T = TypeVar('I_T')
 E_T = TypeVar('E_T')
 S_T = TypeVar('S_T')
@@ -150,3 +153,38 @@ class TableColumnSet(QueryableSet[Table, TableColumn, int]):
 
     def where(self, *conditions: Callable[[TableColumn], bool]) -> 'TableColumnSet':
         return TableColumnSet(self.table, *self.conditions, *conditions)
+
+class TableRow(TableCellSet, QueryResult[int]):
+    def __init__(self, parent_set: 'TableRowSet', row_idx: int) -> None:
+        TableCellSet.__init__(self, parent_set.table)
+        QueryResult.__init__(self, parent_set, row_idx)
+        self.row_idx = row_idx
+
+    def indices(self) -> Iterator[Tuple[int, int]]:
+        for col_idx in range(self.table.num_cols):
+            yield (col_idx, self.row_idx)
+
+    @property
+    def annotations(self) -> List[Dict]:
+        return self.my_data['annotations']
+
+class TableRowSet(QueryableSet[Table, TableRow, int]):
+    def __init__(self, table: Table, *conditions: Callable[[TableRow], bool]) -> None:
+        super().__init__(table, TableRow, *conditions)
+        self.table = table
+
+    def indices(self) -> Iterator[int]:
+        return iter(range(self.table.num_rows))
+
+    def data(self, row_idx: int) -> List[str]:
+        anno_idx = ':{:d}'.format(row_idx)
+        if anno_idx not in self.table._annotations:
+            self.table._annotations[anno_idx] = []
+
+        return {
+            'row': [ col[row_idx] for col in self.table.relation ],
+            'annotations': self.table._annotations[anno_idx],
+        }
+
+    def where(self, *conditions: Callable[[TableRow], bool]) -> 'TableRowSet':
+        return TableRowSet(self.table, *self.conditions, *conditions)
