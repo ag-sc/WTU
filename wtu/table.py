@@ -88,6 +88,14 @@ class TableCell(QueryResult[Tuple[int, int]]):
         super().__init__(parent_set, idx)
 
     @property
+    def col_idx(self):
+        return self.idx[0]
+
+    @property
+    def row_idx(self):
+        return self.idx[1]
+
+    @property
     def content(self) -> str:
         return self.my_data['content']
 
