@@ -103,6 +103,14 @@ class TableCell(QueryResult[Tuple[int, int]]):
     def annotations(self) -> List[Dict]:
         return self.my_data['annotations']
 
+    def find_annotations(self, anno_source=None, anno_type=None):
+        return [
+            annotation
+            for annotation in self.annotations
+            if (anno_source is None or annotation['source'] == anno_source) and
+            (anno_type is None or annotation['type'] == anno_type)
+        ]
+
 class TableCellSet(QueryableSet[Table, TableCell, Tuple[int, int]]):
     def __init__(self, table: Table, *conditions: Callable[[TableCell], bool]) -> None:
         super().__init__(table, TableCell, *conditions)
