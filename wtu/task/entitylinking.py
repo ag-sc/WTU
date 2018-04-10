@@ -21,16 +21,7 @@ class EntityLinking(Task):
         self.backend = EntityLinking.backends_available[backend_name](**backend_args)
 
     def run(self, table: Table) -> None:
-        # get cells that do not have a 'LiteralNormalization' annotation
-        # FIXME: cellset conditions like this should be moved to the `table' module
-        cellset = table.cells(
-            lambda cell:
-                len(list(
-                    annotation
-                    for annotation in cell.annotations
-                    if annotation['source'] == 'LiteralNormalization'
-                )) == 0
-        )
+        cellset = table.cells()
 
         # iterate over all cells
         for cell in cellset:
