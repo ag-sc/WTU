@@ -78,7 +78,7 @@ class LiteralLinking(Task):
                         for ln_cell, ln_annos in ln_cells:
                             for ln_anno_idx, ln_anno in enumerate(ln_annos):
                                 for matching_property in self.match_literal(ln_anno, properties):
-                                    table.columns()[ln_cell.col_idx].annotations.append({
+                                    ln_cell.annotations.append({
                                         'source': 'LiteralLinking',
                                         'type': 'property',
                                         'uri': matching_property,
