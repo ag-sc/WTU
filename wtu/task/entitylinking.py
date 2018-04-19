@@ -37,7 +37,7 @@ class EntityLinking(Task):
 
             # sum all frequencies to normalize the individual frequencies
             frequency_sum = sum(
-                map(itemgetter(1), top_n_res)
+                map(itemgetter(1), query_res)
             )
 
             # add annotations for each identified entity
