@@ -106,50 +106,6 @@ class DateParser:
                     '$'
                 ),
             },
-            # March 2017; Jan 1999; April, 2016; ...
-            {
-                'name': 'Mon YYYY',
-                'pattern': re.compile(
-                    '^' +
-                    self.month_name_pattern +
-                    ',?\s+' +
-                    self.year_pattern +
-                    '$'
-                ),
-            },
-            # 6. 1999, 11-2017, 09/2017, ...
-            {
-                'name': 'MM YYYY',
-                'pattern': re.compile(
-                    '^' +
-                    self.month_pattern + '\.?' +
-                    '[ /-]+' +
-                    self.year_pattern +
-                    '$'
-                ),
-            },
-            # 2017 Jan, 1999 November, ...
-            {
-                'name': 'YYYY Mon',
-                'pattern': re.compile(
-                    '^' +
-                    self.year_pattern +
-                    '\s+' +
-                    self.month_name_pattern +
-                    '$'
-                ),
-            },
-            # 2016-11, 2017/06, ...
-            {
-                'name': 'YYYY MM',
-                'pattern': re.compile(
-                    '^' +
-                    self.year_pattern +
-                    '[ /-]+' +
-                    self.month_pattern + '\.?' +
-                    '$'
-                ),
-            },
         ]
 
     def parse(self, string):
