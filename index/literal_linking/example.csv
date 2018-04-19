@@ -1,2 +1,7 @@
 http://dbpedia.org/resource/Barack_Obama	http://dbpedia.org/ontology/height	xsd:double	1.85
 http://dbpedia.org/resource/Barack_Obama	http://dbpedia.org/ontology/birthDate	xsd:date	1961-08-04
+http://dbpedia.org/resource/George_W._Bush	http://dbpedia.org/ontology/birthDate	xsd:date	1946-7-6
+http://dbpedia.org/resource/George_H._W._Bush	http://dbpedia.org/ontology/birthDate	xsd:datea	1924-06-12
+http://dbpedia.org/resource/Barack_Obama	http://dbpedia.org/ontology/nthUsPresident	xsd:int	44
+http://dbpedia.org/resource/Donald_Trump	http://dbpedia.org/ontology/nthUsPresident	xsd:int	45
+http://dbpedia.org/resource/Donald_Trump	http://dbpedia.org/ontology/height	xsd:double	1.90
