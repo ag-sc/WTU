@@ -1,11 +1,49 @@
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 import io, csv
-from operator import itemgetter
 import Levenshtein
+import re
+import string
 
 from wtu.task import Task
 from wtu.table import Table
+
+# utility functions
+
+# remove any punctuation characters rom the input string
+#
+# >>> print(string.punctuation)
+# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+def string_remove_punctuation(the_string):
+    return the_string.translate(str.maketrans('', '', string.punctuation))
+
+# remove parentheses and their contents
+def string_remove_parens(the_string):
+    return re.sub(r'\([^)]*\)', '', the_string)
+
+# Levenshtein similarity. Between 0 and 1
+# 0: completely differnt
+# 1: identical
+def metric_levenshtein_similarity(str_a, str_b):
+    edit_distance = Levenshtein.distance(str_a, str_b)
+    max_len = max(len(str_a), len(str_b))
+    return 1 - edit_distance/max_len
+
+# same as metric_levenshtein_similarity but also ignores case
+def metric_levenshtein_similarity_ic(str_a, str_b):
+    return metric_levenshtein_similarity(str_a.lower(), str_b.lower())
+
+# difference between two numbers. Between 0 and 1
+# 0: completely different
+# 1: identical
+def metric_weighted_difference(num_a, num_b):
+    if num_a == num_b:
+        return 1.0
+    elif num_a != 0 and num_b != 0:
+        high, low = max(num_a, num_b), min(num_a, num_b)
+        return 1 - abs((high-low)/high)
+    else:
+        return 0.0
 
 class LiteralLinking(Task):
     backends_available = {}
@@ -18,106 +56,168 @@ class LiteralLinking(Task):
         # instantiate backend
         backend_name, backend_args = backend
         self.backend = LiteralLinking.backends_available[backend_name](**backend_args)
-        self.numeric_diff_cutoff = 200
-        self.string_edit_distance_cutoff = 50
 
-    def match_numeric(self, literal_value, ln_number):
-        try:
-            literal_value = float(literal_value)
-        except ValueError:
-            return []
-
-        if literal_value == ln_number:
-            return ['numeric_exact']
-
-        if literal_value != 0 and ln_number != 0:
-            high, low = max(literal_value, ln_number), min(literal_value, ln_number)
-            diff_percent = abs((high-low)/low*100)
-
-            if diff_percent <= self.numeric_diff_cutoff:
-                return ['numeric_diff={:.2f}%'.format(diff_percent)]
-
-        return []
-
-    def match_value_and_unit(self, literal_value, value, value_normalized):
-        return [
-            *self.match_numeric(literal_value, value),
-            *['normalized_' + transf for transf in self.match_numeric(literal_value, value_normalized)]
+        # string transformations and metrics
+        self.string_transformations = {
+            'string_remove_punctuation': string_remove_punctuation,
+            'string_remove_parens': string_remove_parens,
+        }
+        self.string_metrics = {
+            'levenshtein': metric_levenshtein_similarity,
+            'levenshtein_ic': metric_levenshtein_similarity_ic,
+        }
+        self.string_transformation_seqs = [
+            [], # identity/"do nothing"
+            ['string_remove_punctuation'],
+            ['string_remove_parens', 'string_remove_punctuation'],
         ]
+        self.string_metric_cutoff_below = .5
 
-    def match_date(self, literal_value, date_parts):
-        # normalized the LN annotation's date to these formats
-        # for comparison
-        format_strings = {
+        # date transformations
+        self.date_transformations = {
             'date_normal': '{:04d}-{:02d}-{:02d}',
             'date_nozero': '{:d}-{:d}-{:d}',
         }
 
-        matching_formats = []
-        # iterate over all formats and try to match the literal_value
-        # keep a record of all matching formats
-        for format_name, format_string in format_strings.items():
-            date_formatted = format_string.format(*date_parts)
-            if date_formatted == literal_value:
-                matching_formats.append(format_name)
+        # numeric metrics
+        self.numeric_metrics = {
+            'weighted_difference': metric_weighted_difference,
+        }
+        self.numeric_metric_cutoff_below = .5
 
-        return matching_formats
+    def match_numeric(self, property_value, number):
+        try:
+            property_value = float(property_value)
+        except ValueError:
+            return []
 
-    def match_string(self, literal_value, cell_content):
-        if literal_value == cell_content:
-            return ['string_exact']
+        metric_scores = {
+            metric_name: metric(property_value, number)
+            for metric_name, metric in self.numeric_metrics.items()
+        }
 
-        if literal_value.lower() == cell_content.lower():
-            return ['string_ignore_case']
+        # only include transformations whose metric scores are above the threshold
+        if any(map(lambda s: s >= self.numeric_metric_cutoff_below, metric_scores.values())):
+            return [ (None, metric_scores) ]
+        else:
+            return []
 
-        edit_distance = Levenshtein.distance(
-            literal_value.lower(),
-            cell_content.lower()
-        )
-        max_str_len = max(len(literal_value), len(cell_content))
-        edit_distance_percent = edit_distance*100/max_str_len
+    def match_value_unit(self, property_value, value, value_normalized):
+        try:
+            property_value = float(property_value)
+        except ValueError:
+            return []
 
-        if edit_distance_percent <= self.string_edit_distance_cutoff:
-            return ['string_edit_distance={:.2f}%'.format(edit_distance_percent)]
+        metric_scores = {
+            metric_name: metric(property_value, value)
+            for metric_name, metric in self.numeric_metrics.items()
+        }
+        transformations = []
+        # only include transformations whose metric scores are above the threshold
+        if any(map(lambda s: s >= self.numeric_metric_cutoff_below, metric_scores.values())):
+            transformations = [ (None, metric_scores) ]
+
+        # also try the normalized value
+        if value_normalized != value:
+            metric_scores = {
+                metric_name: metric(property_value, value_normalized)
+                for metric_name, metric in self.numeric_metrics.items()
+            }
+            if any(map(lambda s: s >= self.numeric_metric_cutoff_below, metric_scores.values())):
+                transformations.append(
+                    ('value_normalized', metric_scores)
+                )
+
+        return transformations
+
+    def match_date(self, property_value, date_parts):
+        transformations = []
+
+        # subsequently convert the date to each of the patterns in 'self.date_transformations'
+        # and compare the formatted date against the index value
+        for transformation_name, transformation_pattern in self.date_transformations.items():
+            transformed_date = transformation_pattern.format(
+                date_parts['year'],
+                date_parts['month'],
+                date_parts['day_of_month']
+            )
+            if transformed_date == property_value:
+                transformations.append((transformation_name, None))
+
+        return transformations
+
+    def match_string(self, property_value, cell_content):
+        transformations = []
+        previous_min_score = 0
+
+        # try all transformation sequences
+        for transformation_seq in self.string_transformation_seqs:
+            transformed_cell_content = cell_content
+            # apply all transformations in the transformation sequence
+            for transformation_name in transformation_seq:
+                transformation = self.string_transformations[transformation_name]
+                transformed_cell_content = transformation(transformed_cell_content)
+
+            # calculate metrics for the transformed string
+            metric_scores = {
+                metric_name: metric(property_value, transformed_cell_content)
+                for metric_name, metric in self.string_metrics.items()
+            }
+
+            # if any of the metric's scores is above 'string_metric_cutoff_below' and also higher
+            # than the minimal score from the previous transformation, add the transformation and
+            # metric scores to the list of matching transformations
+            if any(map(lambda s: s >= self.string_metric_cutoff_below and s > previous_min_score, metric_scores.values())):
+                transformations.append((transformation_seq, metric_scores))
+                previous_min_score = min(metric_scores.values())
+
+        return transformations
 
     def match_properties(self, cell, properties):
-        # find all LN annotations of the current cell
-        ln_annos = cell.find_annotations(anno_source='LiteralNormalization')
+        matching_properties = defaultdict(list)
 
-        matching_properties = defaultdict(lambda : { 'index_value': None, 'transforms': [] })
         # iterate over all properties
-        for property_uri, literal_type, literal_value in properties:
-            # iterate over all LN annotations the cell might have
-            # and try to match the 'normalized' versions of the cell's
-            # content to a propertie's literal_value
-            for ln_anno in ln_annos:
-                ln_type = ln_anno['type']
+        for property_uri, property_type, property_value in properties:
+            for anno_idx, anno in enumerate(cell.annotations):
+                # iterate over the cell's LiteralNormalization annotations (if it has any)
+                # and use the normalized cell value for comparisons against the index
+                if anno['source'] == 'LiteralNormalization':
+                    ln_anno_idx = '{:d}:{:d}/{:d}'.format(*cell.idx, anno_idx)
+                    ln_type = anno['type']
+                    transformations = []
 
-                if ln_type == 'numeric':
-                    matching_numeric = self.match_numeric(literal_value, ln_anno['number'])
-                    if matching_numeric:
-                        matching_properties[property_uri]['transforms'].extend(matching_numeric)
-                        matching_properties[property_uri]['index_value'] = literal_value
-                elif ln_type == 'value and unit':
-                    matching_value_and_unit = self.match_value_and_unit(literal_value, ln_anno['value'], ln_anno['value_normalized'])
-                    if matching_value_and_unit:
-                        matching_properties[property_uri]['transforms'].extend(matching_value_and_unit)
-                        matching_properties[property_uri]['index_value'] = literal_value
-                elif ln_type == 'date':
-                    matching_date_formats = self.match_date(literal_value, [
-                        ln_anno[part] for part in [
-                            'year', 'month', 'day_of_month'
-                        ]]
-                    )
-                    if matching_date_formats:
-                        matching_properties[property_uri]['transforms'].extend(matching_date_formats)
-                        matching_properties[property_uri]['index_value'] = literal_value
+                    # distinguish between the different kinds of LiteralNormalization annotations
+                    # and collect their transformations/metric scores
 
-            # just compare the cell's content as it is
-            matching_string = self.match_string(literal_value, cell.content)
-            if matching_string:
-                matching_properties[property_uri]['transforms'].extend(matching_string)
-                matching_properties[property_uri]['index_value'] = literal_value
+                    if ln_type == 'date':
+                        date_parts = {
+                            k: anno[k]
+                            for k in ['year', 'month', 'day_of_month']
+                        }
+                        transformations = self.match_date(property_value, date_parts)
+
+                    elif ln_type == 'numeric':
+                        transformations = self.match_numeric(property_value, anno['number'])
+
+                    elif ln_type == 'value and unit':
+                        transformations = self.match_value_unit(property_value, anno['value'], anno['value_normalized'])
+
+                    if transformations:
+                        matching_properties[property_uri].append({
+                            'references_ln': ln_anno_idx,
+                            'transformations': transformations,
+                            'index_value': property_value,
+                        })
+
+            # always do string comparison regardless of the existence of
+            # any LiteralNormalization annotations
+            string_transformations = self.match_string(property_value, cell.content)
+            if string_transformations:
+                matching_properties[property_uri].append({
+                    'references_ln': None,
+                    'transformations': string_transformations,
+                    'index_value': property_value,
+                })
 
         return matching_properties
 
@@ -149,16 +249,16 @@ class LiteralLinking(Task):
 
                         # try to match the cell's content with one of
                         # the entity's properties
-                        matching_properties = self.match_properties(other_cell, properties)
-                        for matching_property, property_info in matching_properties.items():
-                            other_cell.annotations.append({
-                                'source': 'LiteralLinking',
-                                'type': 'property',
-                                'uri': matching_property,
-                                'references_EL': '{:d}:{:d}/{:d}'.format(*el_cell.idx, el_anno_idx),
-                                'transforms': property_info['transforms'],
-                                'index_value': property_info['index_value'],
-                            })
+                        matching_properties = self.match_properties(other_cell, properties);
+                        for property_uri, match_infos in matching_properties.items():
+                            for match_info in match_infos:
+                                other_cell.annotations.append({
+                                    'source': 'LiteralLinking',
+                                    'type': 'property',
+                                    'property_uri': property_uri,
+                                    'references_el': '{:d}:{:d}/{:d}'.format(*el_cell.idx, el_anno_idx),
+                                    **match_info
+                                })
         return True
 
 class LiteralLinkingBackend(metaclass=ABCMeta):
