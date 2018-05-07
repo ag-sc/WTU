@@ -29,10 +29,6 @@ def metric_levenshtein_similarity(str_a, str_b):
     max_len = max(len(str_a), len(str_b))
     return 1 - edit_distance/max_len
 
-# same as metric_levenshtein_similarity but also ignores case
-def metric_levenshtein_similarity_ic(str_a, str_b):
-    return metric_levenshtein_similarity(str_a.lower(), str_b.lower())
-
 # difference between two numbers. Between 0 and 1
 # 0: completely different
 # 1: identical
@@ -59,17 +55,18 @@ class LiteralLinking(Task):
 
         # string transformations and metrics
         self.string_transformations = {
+            'string_to_lowercase': lambda s: s.lower(),
             'string_remove_punctuation': string_remove_punctuation,
             'string_remove_parens': string_remove_parens,
         }
         self.string_metrics = {
             'levenshtein': metric_levenshtein_similarity,
-            'levenshtein_ic': metric_levenshtein_similarity_ic,
         }
         self.string_transformation_seqs = [
             [], # identity/"do nothing"
-            ['string_remove_punctuation'],
-            ['string_remove_parens', 'string_remove_punctuation'],
+            ['string_to_lowercase'],
+            ['string_to_lowercase', 'string_remove_punctuation'],
+            ['string_to_lowercase', 'string_remove_parens', 'string_remove_punctuation'],
         ]
         self.string_metric_cutoff_below = .5
 
