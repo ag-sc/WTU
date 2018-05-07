@@ -259,6 +259,14 @@ class LiteralNormalization(Task):
     def run(self, table: Table):
         # iterate over all cells
         for cell in table.cells():
+            # always add a 'plain' annotation
+            cell.annotations.append({
+                'source': 'preprocessing',
+                'task': 'LiteralNormalization',
+                'type': 'plain',
+                'string': cell.content,
+            })
+
             # identify values with units
             unit_hypos = self.unit_parser.parse(cell.content)
             if unit_hypos:

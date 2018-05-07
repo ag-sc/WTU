@@ -199,22 +199,15 @@ class LiteralLinking(Task):
                     elif ln_type == 'value and unit':
                         transformations = self.match_value_unit(property_value, anno['value'], anno['value_normalized'])
 
+                    elif ln_type == 'plain':
+                        transformations = self.match_string(property_value, anno['string'])
+
                     if transformations:
                         matching_properties[property_uri].append({
                             'references_ln': ln_anno_idx,
                             'transformations': transformations,
                             'index_value': property_value,
                         })
-
-            # always do string comparison regardless of the existence of
-            # any LiteralNormalization annotations
-            string_transformations = self.match_string(property_value, cell.content)
-            if string_transformations:
-                matching_properties[property_uri].append({
-                    'references_ln': None,
-                    'transformations': string_transformations,
-                    'index_value': property_value,
-                })
 
         return matching_properties
 
