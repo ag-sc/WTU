@@ -38,6 +38,7 @@ for table_name_ext in os.listdir(tables_dir):
         class_name, class_uri = classes[table_name]
         table.annotations.append({
             'source': 'gold-v2',
+            'task': 'ClassLinking',
             'type': 'class',
             'class_name': class_name,
             'class_uri': class_uri
@@ -62,6 +63,7 @@ for table_name_ext in os.listdir(tables_dir):
                     # property annotation
                     column.annotations.append({
                         'source': 'gold-v2',
+                        'task': 'PropertyLinking',
                         'type': 'property',
                         'property_uri': property_uri
                     })
@@ -71,6 +73,7 @@ for table_name_ext in os.listdir(tables_dir):
                         key_col_idx = col_idx
                         column.annotations.append({
                             'source': 'gold-v2',
+                            'task': 'KeyColumnIdentification',
                             'type': 'key_column',
                         })
 
@@ -93,7 +96,8 @@ for table_name_ext in os.listdir(tables_dir):
                         # instance annotation
                         cell.annotations.append({
                             'source': 'gold-v2',
-                            'type': 'entity_linking',
+                            'task': 'EntityLinking',
+                            'type': 'resource',
                             'resource_uri': resource_uri
                         })
 

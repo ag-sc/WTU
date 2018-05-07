@@ -67,7 +67,8 @@ class LanguageDetection(Task):
                 limit_match = True
 
             table.annotations.append({
-                'source': 'LanguageDetection',
+                'source': 'preprocessing',
+                'task': 'LanguageDetection',
                 'language': language_name,
                 'score': normalized_score,
             })

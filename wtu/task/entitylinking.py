@@ -43,12 +43,15 @@ class EntityLinking(Task):
             # add annotations for each identified entity
             for entity in top_n_res:
                 uri, frequency = entity
+                if not uri.startswith('http'):
+                    uri = 'http://dbpedia.org/resource/' + uri
                 normalized_frequency = frequency/frequency_sum
 
                 cell.annotations.append({
+                    'source': 'preprocessing',
+                    'task': 'EntityLinking',
                     'type': 'resource',
-                    'source': 'EntityLinking',
-                    'uri': uri,
+                    'resource_uri': uri,
                     'frequency': normalized_frequency,
                 })
 

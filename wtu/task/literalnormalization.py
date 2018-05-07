@@ -264,7 +264,8 @@ class LiteralNormalization(Task):
             if unit_hypos:
                 for unit_hypo in unit_hypos:
                     cell.annotations.append({
-                        'source': 'LiteralNormalization',
+                        'source': 'preprocessing',
+                        'task': 'LiteralNormalization',
                         'type': 'value and unit',
                         **unit_hypo
                     })
@@ -275,7 +276,8 @@ class LiteralNormalization(Task):
             if date_hypos:
                 for date_hypo in date_hypos:
                     cell.annotations.append({
-                        'source': 'LiteralNormalization',
+                        'source': 'preprocessing',
+                        'task': 'LiteralNormalization',
                         'type': 'date',
                         **date_hypo
                     })
@@ -285,7 +287,8 @@ class LiteralNormalization(Task):
             number = self.numeric_parser.parse(cell.content)
             if number is not None:
                 cell.annotations.append({
-                    'source': 'LiteralNormalization',
+                    'source': 'preprocessing',
+                    'task': 'LiteralNormalization',
                     'type': 'numeric',
                     'number': number,
                 })

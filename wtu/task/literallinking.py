@@ -181,7 +181,7 @@ class LiteralLinking(Task):
             for anno_idx, anno in enumerate(cell.annotations):
                 # iterate over the cell's LiteralNormalization annotations (if it has any)
                 # and use the normalized cell value for comparisons against the index
-                if anno['source'] == 'LiteralNormalization':
+                if anno['task'] == 'LiteralNormalization':
                     ln_anno_idx = '{:d}:{:d}/{:d}'.format(*cell.idx, anno_idx)
                     ln_type = anno['type']
                     transformations = []
@@ -227,7 +227,7 @@ class LiteralLinking(Task):
             # find all 'entity' cell in the current row
             el_cells = []
             for cell in row:
-                el_annos = cell.find_annotations(anno_source='EntityLinking')
+                el_annos = cell.find_annotations(anno_source='preprocessing', anno_task='EntityLinking')
                 if el_annos:
                     el_cells.append((cell, el_annos))
 
@@ -237,7 +237,7 @@ class LiteralLinking(Task):
                 for el_anno_idx, el_anno in enumerate(el_annos):
                     # query the backend for the set of this entitie's properties,
                     # skip this entity if there are none
-                    properties = self.backend.query(el_anno['uri'])
+                    properties = self.backend.query(el_anno['resource_uri'])
                     if not properties:
                         continue
 
@@ -251,9 +251,11 @@ class LiteralLinking(Task):
                         # the entity's properties
                         matching_properties = self.match_properties(other_cell, properties);
                         for property_uri, match_infos in matching_properties.items():
+                            property_uri = 'http://dbpedia.org/ontology/' + property_uri.split(':')[-1]
                             for match_info in match_infos:
                                 other_cell.annotations.append({
-                                    'source': 'LiteralLinking',
+                                    'source': 'preprocessing',
+                                    'task': 'LiteralLinking',
                                     'type': 'property',
                                     'property_uri': property_uri,
                                     'references_el': '{:d}:{:d}/{:d}'.format(*el_cell.idx, el_anno_idx),
