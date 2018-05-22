@@ -60,6 +60,15 @@ class QueryResult(Generic[I_T]):
     def my_data(self) -> Any:
         return self.parent_set.data(self.idx)
 
+    def find_annotations(self, anno_source=None, anno_task=None, anno_type=None):
+        return [
+            annotation
+            for annotation in self.annotations
+            if (anno_source is None or annotation['source'] == anno_source) and
+            (anno_task is None or annotation['task'] == anno_task) and
+            (anno_type is None or annotation['type'] == anno_type)
+        ]
+
 class QueryableSet(Generic[S_T, E_T, I_T], metaclass=ABCMeta):
     def __init__(self, data_source: S_T, element_type: Type[E_T], *conditions: Callable[[E_T], bool]) -> None:
         self.data_source = data_source
@@ -102,15 +111,6 @@ class TableCell(QueryResult[Tuple[int, int]]):
     @property
     def annotations(self) -> List[Dict]:
         return self.my_data['annotations']
-
-    def find_annotations(self, anno_source=None, anno_task=None, anno_type=None):
-        return [
-            annotation
-            for annotation in self.annotations
-            if (anno_source is None or annotation['source'] == anno_source) and
-            (anno_task is None or annotation['task'] == anno_task) and
-            (anno_type is None or annotation['type'] == anno_type)
-        ]
 
 class TableCellSet(QueryableSet[Table, TableCell, Tuple[int, int]]):
     def __init__(self, table: Table, *conditions: Callable[[TableCell], bool]) -> None:
