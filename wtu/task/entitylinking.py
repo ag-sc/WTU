@@ -74,14 +74,14 @@ class EntityLinkingBackendCSV(EntityLinkingBackend):
             csv_reader = csv.reader(index_fh, delimiter=delimiter, quotechar=quotechar)
             for row in csv_reader:
                 mention, uri, frequency = row
-                self.index[mention].append((uri, frequency))
+                self.index[mention.lower()].append((uri, frequency))
 
     def query(self, mention):
         res = []
         try:
             res = [
                 (entity[0], int(entity[1]))
-                for entity in self.index[mention]
+                for entity in self.index[mention.lower()]
             ]
         except KeyError:
             pass
