@@ -5,6 +5,7 @@ from collections import defaultdict
 
 from wtu.task import Task
 from wtu.table import Table
+from wtu.util import URI
 
 class EntityLinking(Task):
     backends_available = {}
@@ -43,15 +44,13 @@ class EntityLinking(Task):
             # add annotations for each identified entity
             for entity in top_n_res:
                 uri, frequency = entity
-                if not uri.startswith('http'):
-                    uri = 'http://dbpedia.org/resource/' + uri
                 normalized_frequency = frequency/frequency_sum
 
                 cell.annotations.append({
                     'source': 'preprocessing',
                     'task': 'EntityLinking',
                     'type': 'resource',
-                    'resource_uri': uri,
+                    'resource_uri': uri.long(),
                     'frequency': normalized_frequency,
                 })
 
@@ -74,6 +73,7 @@ class EntityLinkingBackendCSV(EntityLinkingBackend):
             csv_reader = csv.reader(index_fh, delimiter=delimiter, quotechar=quotechar)
             for row in csv_reader:
                 mention, uri, frequency = row
+                uri = URI.parse(uri, 'dbr')
                 self.index[mention.lower()].append((uri, frequency))
 
     def query(self, mention):

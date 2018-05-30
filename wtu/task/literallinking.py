@@ -7,6 +7,7 @@ import string
 
 from wtu.task import Task
 from wtu.table import Table
+from wtu.util import URI
 
 # utility functions
 
@@ -241,13 +242,13 @@ class LiteralLinking(Task):
                         # the entity's properties
                         matching_properties = self.match_properties(other_cell, properties);
                         for property_uri, match_infos in matching_properties.items():
-                            property_uri = 'http://dbpedia.org/ontology/' + property_uri.split(':')[-1]
+                            property_uri = URI.parse(property_uri)
                             for match_info in match_infos:
                                 other_cell.annotations.append({
                                     'source': 'preprocessing',
                                     'task': 'LiteralLinking',
                                     'type': 'property',
-                                    'property_uri': property_uri,
+                                    'property_uri': property_uri.long(),
                                     'references_el': '{:d}:{:d}/{:d}'.format(*el_cell.idx, el_anno_idx),
                                     **match_info
                                 })
@@ -268,12 +269,14 @@ class LiteralLinkingBackendCSV(LiteralLinkingBackend):
             csv_reader = csv.reader(index_fh, delimiter=delimiter, quotechar=quotechar)
             for row in csv_reader:
                 entity_uri, property_uri, literal_type, literal_value = row
-                self.index[entity_uri].append((property_uri, literal_type, literal_value))
+                entity_uri = URI.parse(entity_uri, 'dbr')
+                self.index[entity_uri.short()].append((property_uri, literal_type, literal_value))
 
     def query(self, entity_uri):
+        entity_uri = URI.parse(entity_uri)
         res = []
         try:
-            res = self.index[entity_uri]
+            res = self.index[entity_uri.short()]
         except KeyError:
             pass
 
