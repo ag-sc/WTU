@@ -2,10 +2,19 @@ from abc import ABCMeta, abstractmethod
 import io, csv
 from operator import itemgetter
 from collections import defaultdict
+import Levenshtein
 
 from wtu.task import Task
 from wtu.table import Table
 from wtu.util import URI
+
+# Levenshtein similarity. Between 0 and 1
+# 0: completely differnt
+# 1: identical
+def levenshtein_similarity(str_a, str_b):
+    edit_distance = Levenshtein.distance(str_a, str_b)
+    max_len = max(len(str_a), len(str_b))
+    return 1 - edit_distance/max_len
 
 class EntityLinking(Task):
     backends_available = {}
@@ -14,8 +23,11 @@ class EntityLinking(Task):
     def register_backend(cls, name, backend):
         cls.backends_available[name] = backend
 
-    def __init__(self, backend, top_n=3):
+    def __init__(self, backend, top_n=3, fuzzy=None):
         self.top_n = top_n
+        self.fuzzy = fuzzy
+        if self.fuzzy is None:
+            self.fuzzy = []
 
         # instantiate backend
         backend_name, backend_args = backend
@@ -27,7 +39,7 @@ class EntityLinking(Task):
         # iterate over all cells
         for cell in cellset:
             # query the backend for mentions of the cell's content
-            query_res = self.backend.query(cell.content)
+            query_res = self.backend.query(cell.content, *self.fuzzy)
 
             # get top <n> results (weighted by frequency of occurrence)
             top_n_res = sorted(
@@ -74,19 +86,22 @@ class EntityLinkingBackendCSV(EntityLinkingBackend):
             for row in csv_reader:
                 mention, uri, frequency = row
                 uri = URI.parse(uri, 'dbr')
-                self.index[mention.lower()].append((uri, frequency))
+                self.index[mention.lower()].append((uri, int(frequency)))
 
-    def query(self, mention):
-        res = []
-        try:
-            res = [
-                (entity[0], int(entity[1]))
-                for entity in self.index[mention.lower()]
-            ]
-        except KeyError:
-            pass
+    def query(self, mention, fuzzy=False, fuzzy_cutoff=1):
+        mention = mention.lower()
 
-        return res
+        if fuzzy:
+            res = []
+            for index_mention, index_data in self.index.items():
+                if levenshtein_similarity(mention, index_mention) >= fuzzy_cutoff:
+                    res.extend(index_data)
+            return res
+        else:
+            try:
+                return self.index[mention]
+            except KeyError:
+                return []
 
 # register backends with the EntityLinking main class
 EntityLinking.register_backend('csv', EntityLinkingBackendCSV)
