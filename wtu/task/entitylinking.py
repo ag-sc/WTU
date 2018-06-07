@@ -27,7 +27,7 @@ class EntityLinking(Task):
         self.top_n = top_n
         self.fuzzy = fuzzy
         if self.fuzzy is None:
-            self.fuzzy = []
+            self.fuzzy = [False, 1]
 
         # instantiate backend
         backend_name, backend_args = backend
@@ -39,7 +39,10 @@ class EntityLinking(Task):
         # iterate over all cells
         for cell in cellset:
             # query the backend for mentions of the cell's content
-            query_res = self.backend.query(cell.content, *self.fuzzy)
+            query_res = self.backend.query(cell.content)
+
+            if self.fuzzy[0] and len(query_res) == 0:
+                query_res = self.backend.fuzzy_search(cell.content, fuzzy_cutoff=self.fuzzy[1])
 
             # get top <n> results (weighted by frequency of occurrence)
             top_n_res = sorted(
@@ -88,20 +91,23 @@ class EntityLinkingBackendCSV(EntityLinkingBackend):
                 uri = URI.parse(uri, 'dbr')
                 self.index[mention.lower()].append((uri, int(frequency)))
 
-    def query(self, mention, fuzzy=False, fuzzy_cutoff=1):
+    def query(self, mention):
         mention = mention.lower()
 
-        if fuzzy:
-            res = []
-            for index_mention, index_data in self.index.items():
-                if levenshtein_similarity(mention, index_mention) >= fuzzy_cutoff:
-                    res.extend(index_data)
-            return res
-        else:
-            try:
-                return self.index[mention]
-            except KeyError:
-                return []
+        try:
+            return self.index[mention]
+        except KeyError:
+            return []
+
+    def fuzzy_search(self, mention, fuzzy_cutoff=1):
+        mention = mention.lower()
+        res = []
+
+        for index_mention, index_data in self.index.items():
+            if levenshtein_similarity(mention, index_mention) >= fuzzy_cutoff:
+                res.extend(index_data)
+
+        return res
 
 # register backends with the EntityLinking main class
 EntityLinking.register_backend('csv', EntityLinkingBackendCSV)
