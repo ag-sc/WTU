@@ -6,14 +6,17 @@ from wtu.table import Table
 
 total_amount_columns = 0
 total_same_uri = 0
-total_other_uri = 0
+total_other_uri_NOT_IN_list = 0
+total_other_uri_IN_list = 0
 total_no_gold_uri = 0
 total_no_LL_annos = 0
-table_no = 1
+table_no = 0
 
 
-# returns the most frequent URI of all cells in the column (empty str if no URIs in any cells in the column)
-def naiveMaximum(column) -> str:
+# returns:
+# str: the most frequent URI of all cells in the column (empty str if no URIs in any cells in the column),
+# dict: key: all URIs we made in this column, value: amount of their occurrence
+def naiveMaximum(column) -> (str, dict):
 
     # find all LiteralLinking-annotations in our column for each cell
     pl_annotations = []
@@ -45,7 +48,7 @@ def naiveMaximum(column) -> str:
         most_freq_uri = ''  # it means: counter was empty <= property_uris was empty <= we did not have any LL-annos in any of the cells
         print("column has gold-uri, but we don't have any LL-annotations for any cell in this column.")
 
-    return most_freq_uri
+    return (most_freq_uri, counter)
 
 
 
@@ -62,7 +65,8 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
 
             table_amount_columns = 0
             column_same_uri = 0
-            column_other_uri = 0
+            column_other_uri_NOT_IN_list = 0
+            column_other_uri_IN_list = 0
             column_has_no_gold_uri = 0
             column_has_no_LL_anno = 0
 
@@ -91,10 +95,13 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                     print('No gold-uri to compare with.')
                     continue
 
-                most_freq_uri = naiveMaximum(column)
+                myTuple = naiveMaximum(column)
+                most_freq_uri = myTuple[0]
+                ourURIs = myTuple[1]
 
                 # insert an annotation with that most frequent uri to the current column
                 if(most_freq_uri != ''): column.annotations.append({'source': 'evaluation', 'task': 'PropertyLinking', 'property_uri': most_freq_uri})
+
 
                 # compare the gold-annotation-uri to our most_freq_uri
                 if(most_freq_uri == gold_uri):
@@ -105,8 +112,15 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                     total_no_LL_annos+=1
                     column_has_no_LL_anno+=1
                 else:
-                    total_other_uri+=1
-                    column_other_uri+=1
+                    if (gold_uri in ourURIs.keys()):
+                        print('We also have annotated some of our cells in this column with that gold-uri. But its not the most frequent one.')
+                        print('It occurred only '+ str(ourURIs[gold_uri]) + '/'+ str(sum(ourURIs.values())) + ' times in our annotations.' )
+                        total_other_uri_IN_list+=1
+                        column_other_uri_IN_list+=1
+                    else:
+                        print('The gold URI is not even within any of our cell-annotations in this column.')
+                        total_other_uri_NOT_IN_list+=1
+                        column_other_uri_NOT_IN_list+=1
 
 
             print('\nTABLE END - Table '+ str(table_no) + '\n')
@@ -121,7 +135,8 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
         print(
             '-----',
             'column_same_uri = ' + str(column_same_uri) + '/' + str(table_amount_columns),
-            'column_other_uri = ' + str(column_other_uri) + '/' + str(table_amount_columns),
+            'column_other_uri_NOT_IN_list = ' + str(column_other_uri_NOT_IN_list) + '/' + str(table_amount_columns),
+            'column_other_uri_IN_list = ' + str(column_other_uri_IN_list) + '/' + str(table_amount_columns),
             'column_has_no_gold_uri = ' + str(column_has_no_gold_uri) + '/' + str(table_amount_columns),
             'column_has_no_LL_anno = ' + str(column_has_no_LL_anno) + '/' + str(table_amount_columns),
             '-----',
@@ -134,7 +149,8 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
         '-------------------------------------------------------------------------',
         '-------------------------------------------------------------------------',
         'total_same_uri = ' + str(total_same_uri) + '/' + str(total_amount_columns),
-        'total_other_uri = ' + str(total_other_uri) + '/' + str(total_amount_columns),
+        'total_other_uri_NOT_IN_list = ' + str(total_other_uri_NOT_IN_list) + '/' + str(total_amount_columns),
+        'total_other_uri_IN_list = ' + str(total_other_uri_IN_list) + '/' + str(total_amount_columns),
         'total_no_gold_uri = ' + str(total_no_gold_uri) + '/' + str(total_amount_columns),
         'total_no_LL_annos = ' + str(total_no_LL_annos) + '/' + str(total_amount_columns),
         '-------------------------------------------------------------------------',
