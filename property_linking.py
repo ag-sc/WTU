@@ -10,7 +10,9 @@ total_other_uri_NOT_IN_list = 0
 total_other_uri_IN_list = 0
 total_no_gold_uri = 0
 total_no_LL_annos = 0
+total_gold_uri_not_valid = 0
 table_no = 0
+
 
 
 # returns:
@@ -55,6 +57,11 @@ def naiveMaximum(column) -> (str, dict):
 # read from stdin, ignore encoding errors
 with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdin:
 
+    # read the URIs and save in list. only if the gold URI is a URI from the list, then compare to our found annotation/URI.
+    with open('properties_to_consider.txt') as f:
+        uris_from_file = f.readlines()
+    uris_from_file = [uri.strip('\n') for uri in uris_from_file]
+
     # iterate over input. Each line represents one table
     for json_line in stdin:
         try:
@@ -69,6 +76,7 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
             column_other_uri_IN_list = 0
             column_has_no_gold_uri = 0
             column_has_no_LL_anno = 0
+            column_gold_uri_not_valid = 0
 
             print('-------------------------------------------------------------------------\n')
             print('TABLE BEGIN - Table '+ str(table_no) + '   total rows: '+str(table.num_rows)+ '   total cols: '+str(table.num_cols) +'\n')
@@ -94,6 +102,14 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                     total_no_gold_uri+=1
                     print('No gold-uri to compare with.')
                     continue
+
+                # if the gold_uri is not in the list of valid uris, move to the next column
+                if(gold_uri not in uris_from_file):
+                    column_gold_uri_not_valid += 1
+                    total_gold_uri_not_valid +=1
+                    print('Gold-uri is not valid.')
+                    continue
+
 
                 myTuple = naiveMaximum(column)
                 most_freq_uri = myTuple[0]
@@ -139,6 +155,7 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
             'column_other_uri_IN_list = ' + str(column_other_uri_IN_list) + '/' + str(table_amount_columns),
             'column_has_no_gold_uri = ' + str(column_has_no_gold_uri) + '/' + str(table_amount_columns),
             'column_has_no_LL_anno = ' + str(column_has_no_LL_anno) + '/' + str(table_amount_columns),
+            'column_gold_uri_not_valid = ' + str(column_gold_uri_not_valid) + '/' + str(table_amount_columns),
             '-----',
             sep='\n'
         )
@@ -148,11 +165,15 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
         '',
         '-------------------------------------------------------------------------',
         '-------------------------------------------------------------------------',
-        'total_same_uri = ' + str(total_same_uri) + '/' + str(total_amount_columns),
-        'total_other_uri_NOT_IN_list = ' + str(total_other_uri_NOT_IN_list) + '/' + str(total_amount_columns),
-        'total_other_uri_IN_list = ' + str(total_other_uri_IN_list) + '/' + str(total_amount_columns),
         'total_no_gold_uri = ' + str(total_no_gold_uri) + '/' + str(total_amount_columns),
-        'total_no_LL_annos = ' + str(total_no_LL_annos) + '/' + str(total_amount_columns),
+        'total_gold_uri_not_valid = ' + str(total_gold_uri_not_valid) + '/' + str(total_amount_columns),
+        'rest = '+ str( total_amount_columns - total_no_gold_uri - total_gold_uri_not_valid )+ '/' + str(total_amount_columns),
+        '-----------------------------------------------',
+        'total_same_uri = ' + str(total_same_uri) + '/' + str(total_amount_columns - total_no_gold_uri - total_gold_uri_not_valid),
+        'total_other_uri_NOT_IN_list = ' + str(total_other_uri_NOT_IN_list) + '/' + str(total_amount_columns - total_no_gold_uri - total_gold_uri_not_valid),
+        'total_other_uri_IN_list = ' + str(total_other_uri_IN_list) + '/' + str(total_amount_columns - total_no_gold_uri - total_gold_uri_not_valid),
+        'total_no_LL_annos = ' + str(total_no_LL_annos) + '/' + str(total_amount_columns - total_no_gold_uri - total_gold_uri_not_valid),
+
         '-------------------------------------------------------------------------',
         '-------------------------------------------------------------------------',
         sep='\n'
