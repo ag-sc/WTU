@@ -11,6 +11,7 @@ from wtu.task.literalnormalization import LiteralNormalization
 from wtu.task.entitylinking import EntityLinking
 from wtu.task.languagedetection import LanguageDetection
 from wtu.task.literallinking import LiteralLinking
+from wtu.task.classlinking import ClassLinking
 
 # utility function (print message to STDERR and exit)
 def die(message, return_code=1):
@@ -67,7 +68,7 @@ def main():
     # known tasks and their names
     tasks_available = {
         task_cls.__name__: task_cls
-        for task_cls in [LanguageDetection, LiteralNormalization, EntityLinking, LiteralLinking]
+        for task_cls in [LanguageDetection, LiteralNormalization, EntityLinking, LiteralLinking, ClassLinking]
     }
 
     # initialize list of tasks scheduled to be run
