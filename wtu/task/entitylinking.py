@@ -1,8 +1,9 @@
 from abc import ABCMeta, abstractmethod
-import io, csv
+import io, csv, re, string
 from operator import itemgetter
 from collections import defaultdict
 import Levenshtein
+from unidecode import unidecode
 
 from wtu.task import Task
 from wtu.table import Table
@@ -15,6 +16,21 @@ def levenshtein_similarity(str_a, str_b):
     edit_distance = Levenshtein.distance(str_a, str_b)
     max_len = max(len(str_a), len(str_b))
     return 1 - edit_distance/max_len
+
+def preprocess_mention(mention):
+    # lower case
+    mention = mention.lower()
+    # remove parentheses/brackets
+    mention = re.sub(r'\([^)]*\)|\[[^]]*\]', '', mention)
+    # remove spaces
+    mention = mention.replace(' ', '')
+    # remove remaining punctuation
+    mention = mention.translate(str.maketrans('', '', string.punctuation))
+    # translate unicode characters to ASCII (e.g. 'ç' -> 'c')
+    mention = unidecode(mention)
+
+    return mention
+
 
 class EntityLinking(Task):
     backends_available = {}
@@ -93,11 +109,12 @@ class EntityLinkingBackendCSV(EntityLinkingBackend):
             csv_reader = csv.reader(index_fh, delimiter=delimiter, quotechar=quotechar)
             for row in csv_reader:
                 mention, uri, frequency = row
+                mention = preprocess_mention(mention)
                 uri = URI.parse(uri, 'dbr')
-                self.index[mention.lower()].append((uri, int(frequency)))
+                self.index[mention].append((uri, int(frequency)))
 
     def query(self, mention):
-        mention = mention.lower()
+        mention = preprocess_mention(mention)
 
         try:
             return self.index[mention]
@@ -105,7 +122,7 @@ class EntityLinkingBackendCSV(EntityLinkingBackend):
             return []
 
     def fuzzy_search(self, mention, fuzzy_cutoff=1):
-        mention = mention.lower()
+        mention = preprocess_mention(mention)
         res = []
 
         for index_mention, index_data in self.index.items():
