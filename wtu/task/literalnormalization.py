@@ -257,8 +257,15 @@ class LiteralNormalization(Task):
         self.numeric_parser = NumericParser()
 
     def run(self, table: Table):
+        cellset = table.cells()
+
+        if 'headerRowIndex' in table.table_data:
+            header_row_index = table.table_data['headerRowIndex']
+            if header_row_index != -1:
+                cellset = cellset.where(lambda cell: cell.row_idx != header_row_index)
+
         # iterate over all cells
-        for cell in table.cells():
+        for cell in cellset:
             # always add a 'plain' annotation
             cell.annotations.append({
                 'source': 'preprocessing',

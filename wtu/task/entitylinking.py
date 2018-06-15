@@ -36,6 +36,11 @@ class EntityLinking(Task):
     def run(self, table: Table) -> None:
         cellset = table.cells()
 
+        if 'headerRowIndex' in table.table_data:
+            header_row_index = table.table_data['headerRowIndex']
+            if header_row_index != -1:
+                cellset = cellset.where(lambda cell: cell.row_idx != header_row_index)
+
         # iterate over all cells
         for cell in cellset:
             # query the backend for mentions of the cell's content
