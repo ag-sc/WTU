@@ -77,6 +77,12 @@ class LiteralLinking(Task):
             'date_nozero': '{:d}-{:d}-{:d}',
         }
 
+        # date transformations specific to literals of type xsd:gYear
+        self.date_transformations_gYear = {
+            'date_year_only': '{:04d}',
+            'date_year_jan_fst': '{:04d}-01-01',
+        }
+
         # numeric metrics
         self.numeric_metrics = {
             'weighted_difference': metric_weighted_difference,
@@ -128,7 +134,7 @@ class LiteralLinking(Task):
 
         return transformations
 
-    def match_date(self, property_value, date_parts):
+    def match_date(self, property_type, property_value, date_parts):
         transformations = []
 
         # subsequently convert the date to each of the patterns in 'self.date_transformations'
@@ -141,6 +147,14 @@ class LiteralLinking(Task):
             )
             if transformed_date == property_value:
                 transformations.append((transformation_name, None))
+
+        # sometimes literals of type xsd:gYear have values like '1953-01-01' instead of just '1953'
+        # e.g. http://dbpedia.org/page/Mount_Everest, dbo:firstAscentYear
+        if property_type == 'xsd:gYear':
+            for transformation_name, transformation_pattern in self.date_transformations_gYear.items():
+                transformed_date = transformation_pattern.format(date_parts['year'])
+                if transformed_date == property_value:
+                    transformations.append((transformation_name, None))
 
         return transformations
 
@@ -192,7 +206,7 @@ class LiteralLinking(Task):
                             k: anno[k]
                             for k in ['year', 'month', 'day_of_month']
                         }
-                        transformations = self.match_date(property_value, date_parts)
+                        transformations = self.match_date(property_type, property_value, date_parts)
 
                     elif ln_type == 'numeric':
                         transformations = self.match_numeric(property_value, anno['number'])
