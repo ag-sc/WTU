@@ -128,85 +128,88 @@ class DateParser:
         return hypos
 
 class UnitParser:
-    real_number_pattern = "[0-9]+(?:\.[0-9]+)?"
-    # Structure of physical quantities and their corresponding units.
-    # Each unit defines a pattern that matches expressions of values
-    # in this specific unit as well as a factor to calculate the value
-    # expressed in the quantities' base unit.
-    quantities = {
-        "length": {
-            "base_unit": "m",
-            "units": {
-                "m": {
-                    "pattern": re.compile(
-                        "^(?P<value>" +
-                        real_number_pattern +
-                        ")\s*(?P<unit>m(?:eters?)?)$"
-                    ),
-                    "factor": 1,
-                    "data_type": "dbo:m",
-                },
-                "km": {
-                    "pattern": re.compile(
-                        "^(?P<value>" +
-                        real_number_pattern +
-                        ")\s*(?P<unit>k(?:ilo\s*)?m(?:eters?)?)$"
-                    ),
-                    "factor": 1e3,
-                    "data_type": "dbo:km",
-                },
-                "cm": {
-                    "pattern": re.compile(
-                        "^(?P<value>" +
-                        real_number_pattern +
-                        ")\s*(?P<unit>c(?:enti\s*)?m(?:eters?)?)$"
-                    ),
-                    "factor": 1e-2,
-                    "data_type": "dbo:cm",
-                },
-                # add more units here...
-                # "mm": {...},
-                # "inch": {...},
-                # ...
-            },
-        },
-        "mass": {
-            "base_unit": "kg",
-            "units": {
-                "kg": {
-                    "pattern": re.compile(
-                        "^(?P<value>" +
-                        real_number_pattern +
-                        ")\s*(?P<unit>k(?:ilo\s*)?g(?:ramm?s?)?)$"
-                    ),
-                    "factor": 1,
-                    "data_type": "dbo:kg",
-                },
-                "t": {
-                    "pattern": re.compile(
-                        "^(?P<value>" +
-                        real_number_pattern +
-                        ")\s*(?P<unit>t(?:onn?s)?)$"
-                    ),
-                    "factor": 1e3,
-                    "data_type": "dbo:t",
-                },
-                "g": {
-                    "pattern": re.compile(
-                        "^(?P<value>" +
-                        real_number_pattern +
-                        ")\s*(?P<unit>g(?:ramm?s?)?)$"
-                    ),
-                    "factor": 1e-3,
-                    "data_type": "dbo:g",
+    def __init__(self):
+        self.numeric_parser = NumericParser()
+
+        potential_number_pattern = "[+-]?[0-9., ]*[0-9]+[0-9., ]*"
+        # Structure of physical quantities and their corresponding units.
+        # Each unit defines a pattern that matches expressions of values
+        # in this specific unit as well as a factor to calculate the value
+        # expressed in the quantities' base unit.
+        self.quantities = {
+            "length": {
+                "base_unit": "m",
+                "units": {
+                    "m": {
+                        "pattern": re.compile(
+                            "^(?P<value>" +
+                            potential_number_pattern +
+                            ")\s*(?P<unit>m(?:eters?)?)$"
+                        ),
+                        "factor": 1,
+                        "data_type": "dbo:m",
+                    },
+                    "km": {
+                        "pattern": re.compile(
+                            "^(?P<value>" +
+                            potential_number_pattern +
+                            ")\s*(?P<unit>k(?:ilo\s*)?m(?:eters?)?)$"
+                        ),
+                        "factor": 1e3,
+                        "data_type": "dbo:km",
+                    },
+                    "cm": {
+                        "pattern": re.compile(
+                            "^(?P<value>" +
+                            potential_number_pattern +
+                            ")\s*(?P<unit>c(?:enti\s*)?m(?:eters?)?)$"
+                        ),
+                        "factor": 1e-2,
+                        "data_type": "dbo:cm",
+                    },
+                    # add more units here...
+                    # "mm": {...},
+                    # "inch": {...},
+                    # ...
                 },
             },
-        },
-        # add more physical quantities here...
-        # "area": {...},
-        # "velocity": {...},
-        # ...
-    }
+            "mass": {
+                "base_unit": "kg",
+                "units": {
+                    "kg": {
+                        "pattern": re.compile(
+                            "^(?P<value>" +
+                            potential_number_pattern +
+                            ")\s*(?P<unit>k(?:ilo\s*)?g(?:ramm?s?)?)$"
+                        ),
+                        "factor": 1,
+                        "data_type": "dbo:kg",
+                    },
+                    "t": {
+                        "pattern": re.compile(
+                            "^(?P<value>" +
+                            potential_number_pattern +
+                            ")\s*(?P<unit>t(?:onn?s)?)$"
+                        ),
+                        "factor": 1e3,
+                        "data_type": "dbo:t",
+                    },
+                    "g": {
+                        "pattern": re.compile(
+                            "^(?P<value>" +
+                            potential_number_pattern +
+                            ")\s*(?P<unit>g(?:ramm?s?)?)$"
+                        ),
+                        "factor": 1e-3,
+                        "data_type": "dbo:g",
+                    },
+                },
+            },
+            # add more physical quantities here...
+            # "area": {...},
+            # "velocity": {...},
+            # ...
+        }
 
     def parse(self, string):
         unit_hypos = []
@@ -214,40 +217,56 @@ class UnitParser:
             for unit_name, unit in quantity["units"].items():
                 m = unit["pattern"].match(string)
                 if m:
-                    value = float(m.group("value"))
-                    value_normalized = value * unit["factor"]
-                    unit_hypos.append({
-                        "value": value,
-                        "value_normalized": value_normalized,
-                        "unit_name": unit_name,
-                        "data_type": unit["data_type"],
-                        "quantity_name": quantity_name,
-                    })
+                    values = self.numeric_parser.parse_number(m.group("value"))
+                    for value in values:
+                        value_normalized = value * unit["factor"]
+                        unit_hypos.append({
+                            "value": value,
+                            "value_normalized": value_normalized,
+                            "unit_name": unit_name,
+                            "data_type": unit["data_type"],
+                            "quantity_name": quantity_name,
+                        })
         return unit_hypos
 
 # identify numbers
 class NumericParser:
-    # ^                 start of string
-    # [+-]?             optionall '+' or '-'
-    # (                 optional group
-    #   [0-9]*            | zero or more digits 0-9
-    #   [.,]              | '.' or ',' (decimal separator)
-    # )?                  +---
-    # [0-9]+            one or more digits 0-9
-    # (                 optional group
-    #   [Ee]              | upper case or lower case 'e'
-    #   [+-]?             | optional '+' or '-'
-    #   [0-9]+            | one ore more digits 0-9
-    # )?                  +---
-    # $                 end of string
-    numeric_pattern = re.compile('^[+-]?([0-9]*[.,])?[0-9]+([Ee][+-]?[0-9]+)?$')
+    potential_number_pattern = re.compile('^(?P<number>[+-]?[0-9., ]*[0-9]+[0-9., ]*)$')
+
+    def parse_number(self, string):
+        string = string.replace(' ', '')
+        commas = [m.start() for m in re.finditer(',', string)]
+        dots = [m.start() for m in re.finditer('\.', string)]
+
+        if len(commas) == 0 and len(dots) == 0:
+            return [float(string)]
+
+        if len(commas) >= 2 and len(dots) >= 2:
+            return []
+
+        if len(commas) >= 2:
+            return [float(string.replace(',', ''))]
+
+        if len(dots) >= 2:
+            return [float(string.replace('.', '').replace(',', '.'))]
+
+        if len(commas) == 1 and len(dots) == 1:
+            if max(commas) > max(dots):
+                return [float(string.replace('.', '').replace(',', '.'))]
+            else:
+                return [float(string.replace(',', ''))]
+
+        return [
+            float(string.replace(',', '')),
+            float(string.replace('.', '').replace(',', '.'))
+        ]
 
     def parse(self, string):
-        match = NumericParser.numeric_pattern.match(string)
-        if match:
-            return float(match.group(0).replace(',', '.'))
+        potential_number = NumericParser.potential_number_pattern.match(string)
+        if potential_number:
+            return self.parse_number(potential_number.group('number'))
         else:
-            return None
+            return []
 
 class LiteralNormalization(Task):
     def __init__(self):
@@ -299,14 +318,15 @@ class LiteralNormalization(Task):
                 continue
 
             # identify numbers
-            number = self.numeric_parser.parse(cell.content)
-            if number is not None:
-                cell.annotations.append({
-                    'source': 'preprocessing',
-                    'task': 'LiteralNormalization',
-                    'type': 'numeric',
-                    'number': number,
-                })
+            numbers = self.numeric_parser.parse(cell.content)
+            if numbers:
+                for number in numbers:
+                    cell.annotations.append({
+                        'source': 'preprocessing',
+                        'task': 'LiteralNormalization',
+                        'type': 'numeric',
+                        'number': number,
+                    })
                 continue
 
         return True
