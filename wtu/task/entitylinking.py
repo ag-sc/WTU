@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 import io, csv, re, string
 from operator import itemgetter
-from collections import defaultdict
+from collections import defaultdict, Counter
 import Levenshtein
 from unidecode import unidecode
 
@@ -65,9 +65,13 @@ class EntityLinking(Task):
             if self.fuzzy[0] and len(query_res) == 0:
                 query_res = self.backend.fuzzy_search(cell.content, fuzzy_cutoff=self.fuzzy[1])
 
+            query_res_unique = Counter()
+            for uri, freq in query_res:
+                query_res_unique[uri.long()] += freq
+
             # get top <n> results (weighted by frequency of occurrence)
             top_n_res = sorted(
-                query_res,
+                query_res_unique.items(),
                 key=itemgetter(1),
                 reverse=True
             )[:self.top_n]
@@ -86,7 +90,7 @@ class EntityLinking(Task):
                     'source': 'preprocessing',
                     'task': 'EntityLinking',
                     'type': 'resource',
-                    'resource_uri': uri.long(),
+                    'resource_uri': uri,
                     'frequency': normalized_frequency,
                 })
 
