@@ -232,14 +232,20 @@ class LiteralLinking(Task):
             # find all 'entity' cell in the current row
             el_cells = []
             for cell in row:
-                el_annos = cell.find_annotations(anno_source='preprocessing', anno_task='EntityLinking')
+                # el_annos = cell.find_annotations(anno_source='preprocessing', anno_task='EntityLinking')
+                # if el_annos:
+                #     el_cells.append((cell, el_annos))
+                el_annos = []
+                for cell_anno_idx, cell_anno in enumerate(cell.annotations):
+                    if cell_anno['source'] == 'preprocessing' and cell_anno['task'] == 'EntityLinking':
+                        el_annos.append((cell_anno_idx, cell_anno))
                 if el_annos:
                     el_cells.append((cell, el_annos))
 
             # iterate over all 'entity' cells
             for el_cell, el_annos in el_cells:
                 # iterate over all EL annotations of this cell
-                for el_anno_idx, el_anno in enumerate(el_annos):
+                for el_anno_idx, el_anno in el_annos:
                     # query the backend for the set of this entitie's properties,
                     # skip this entity if there are none
                     properties = self.backend.query(el_anno['resource_uri'])
