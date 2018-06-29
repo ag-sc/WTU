@@ -218,10 +218,15 @@ class LiteralLinking(Task):
                         transformations = self.match_string(property_value, anno['string'])
 
                     if transformations:
+                        index_type = ''
+                        if len(property_type) > 0:
+                            index_type = URI.parse(property_type).long()
+
                         matching_properties[property_uri].append({
                             'references_ln': ln_anno_idx,
                             'transformations': transformations,
                             'index_value': property_value,
+                            'index_type': index_type,
                         })
 
         return matching_properties

@@ -4,6 +4,8 @@ class URI:
         'dbr': 'http://dbpedia.org/resource/',
         'dbo': 'http://dbpedia.org/ontology/',
         'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
+        'xsd': 'http://www.w3.org/2001/XMLSchema#',
+        'dt': 'http://dbpedia.org/datatype/',
     }
 
     def __init__(self, prefix, suffix):
