@@ -28,6 +28,11 @@ class Table:
 
         return self.table_data['annotations'][anno_idx]
 
+    def get_annotation(self, anno_id):
+        cell_idx, anno_idx = anno_id.split('/')
+
+        return self.table_data['annotations'][cell_idx][int(anno_idx)]
+
     def dump(self) -> Dict:
         # clean annotations
         self.table_data['annotations'] = {
