@@ -1,40 +1,48 @@
 import io, sys, json
 from json.decoder import JSONDecodeError
 from wtu.table import Table
+# bokeh
 
-from matplotlib.pyplot import *
-import matplotlib.pyplot as plt
+from bokeh.core.properties import value
+from bokeh.io import show, output_file
+from bokeh.models import ColumnDataSource
+from bokeh.plotting import figure, save
+from bokeh.transform import dodge
+
 import collections as cl
 
-
 # Searches for literal links
-def getLiteral(new_set, cell):
+def getLiteral(cell, col, i):
     c = ""
+
     task = 'LiteralLinking'
     feat = 'property_uri'
+    new_set = 'preprocessing'
 
-    gold = cell.find_annotations(anno_task=task)
-
-    if gold:
+    if col[i]:
         # extract resource uri from annotation as literal
-        gold_uri = gold[0][feat]
+        gold_uri = col[i][0][feat]
 
-        preprocessing = cell.find_annotations(anno_source=new_set,anno_task=task)
-        # extract resource uris and frequencies
-        preprocessing_uris = {annotation[feat] for annotation in preprocessing}
+        preprocessing = cell.find_annotations(anno_task=task)
+        if preprocessing:
+            # extract resource uris and frequencies
+            preprocessing_uris = {annotation[feat] for annotation in preprocessing}
 
-        # check if our annotations also include the gold annotation
-        if gold_uri in preprocessing_uris and gold_uri in props:
-            c = gold_uri
+            # check if our annotations also include the gold annotation
+            if gold_uri in preprocessing_uris and gold_uri in props:
+                c = gold_uri
     else:
         c = "ng"
     return c
 
 # Searches for entity links
-def getEntity(gold_set, new_set, cell):
+def getEntity(cell):
     c = ""
+
     task = 'EntityLinking'
     feat = 'resource_uri'
+    gold_set = 'gold-v2'
+    new_set = 'preprocessing'
 
     gold = cell.find_annotations(anno_source=gold_set,anno_task=task)
 
@@ -51,18 +59,18 @@ def getEntity(gold_set, new_set, cell):
 
         # check if our annotations also include the gold annotation
         if gold_uri in preprocessing_uris:
-            c = gold_uri    
+            c = gold_uri  
     else:
         c = "ng"
     return c
 
 
 # Creates the histogramm for after a new table was analysed
-def makeHist(tab, ana, key_list, s):
+def makeHist(tab, ana, key_list):
     for k in key_list.keys():
-        if ana[k] in tab[k] and ana[key_list[k]] and ana[k] < s:
+        if ana[k] in tab[k] and ana[key_list[k]]:
             tab[k][ana[k]] = tab[k][ana[k]] + 1 
-        elif ana[key_list[k]] and ana[k] < s:
+        elif ana[key_list[k]]:
             tab[k][ana[k]] = 1
 
     return tab
@@ -70,16 +78,15 @@ def makeHist(tab, ana, key_list, s):
 
 
 # Looks if a label is already in the list of lables and adds it if not
-def createLbl(lbl, ana, key_list,s):
+def createLbl(lbl, ana, key_list):
     for k in key_list.keys():
-        if ana[k] not in lbl and ana[k] < s:
+        if ana[k] not in lbl:
             lbl = lbl + [ana[k]]
-
     return lbl
 
 
 
-# Analyses a row/colum and returns the results
+# Analyses a row/colum and return the results
 def analyze(line):
     res = {'m':0, 'm_el':0, 'm_ll':0, 'ng':False, 'ng_el':False, 'ng_ll':False}
 
@@ -102,88 +109,117 @@ def analyze(line):
 
 
 # Analyses the table and adds the result to the overall results
-def analyzeTable(table):
+def analyzeTable(table): 
     global hist_row
     global hist_col
 
     global lbl_col
     global lbl_row
 
-    key_list = {'m':'ng', 'm_el':'ng_el', 'm_ll':'ng_ll'}
-    tabel_local = {'m':{0:0}, 'm_el':{0:0}, 'm_ll':{0:0}}
+    global num_found
+    global found_tables
+
+    tabel_local_row = {'m':{0:0}, 'm_el':{0:0}, 'm_ll':{0:0}}
+    tabel_local_col = {'m':{0:0}, 'm_el':{0:0}, 'm_ll':{0:0}}
     lbl_row_local = []
+    lbl_col_local = []
 
-    for i in range(1, len(table[0])):
-       ana = analyze([row[i-1] for row in table]) 
+    for i in range(0, len(table[0])):
+       ana = analyze([row[i] for row in table]) 
 
-       hist_col = makeHist(hist_col, ana, key_list, 61)
-       lbl_row = createLbl(lbl_row, ana, key_list, len(table[0]))
-       lbl_row_local = createLbl(lbl_row_local, ana, key_list, len(table[0]))
+       tabel_local_col = makeHist(tabel_local_col, ana, key_list)
+       hist_col      = makeHist(hist_col, ana, key_list)
+       lbl_row       = createLbl(lbl_row, ana, key_list)
+       lbl_row_local = createLbl(lbl_row_local, ana, key_list)
 
     for row in table:
        ana = analyze(row) 
 
-       tabel_local = makeHist(tabel_local, ana, key_list, len(row))
-       hist_row    = makeHist(hist_row, ana, key_list, len(row))
-       lbl_col = createLbl(lbl_col, ana, key_list,  61)
+       tabel_local_row = makeHist(tabel_local_row, ana, key_list)
+       hist_row    = makeHist(hist_row, ana, key_list)
+       lbl_col     = createLbl(lbl_col, ana, key_list)
+       lbl_col_local = createLbl(lbl_col_local, ana, key_list)
 
+    
     # Graph for every table
-    #fig, ax = plt.subplots(figsize=(20,12))
-
-    #plt_bar(ax, cl.OrderedDict(sorted(tabel_local['m'].items())), 
-                #cl.OrderedDict(sorted(tabel_local['m_el'].items())), 
-                #cl.OrderedDict(sorted(tabel_local['m_ll'].items())))
-
-    #fig = plt.gcf()
-
-    #plt.xticks(range(len(lbl_row_local)), sorted(lbl_row_local))
-
-    #ax.set_ylabel('Overall number of rows with this number of empty cells')
-    #ax.set_xlabel('Number of empty cells in a row')
-
-    #plt.savefig(str('table'+ str(num_tabel) + '_new.png'))
-    #plt.close()
+    plt_bar(tabel_local_row, lbl_col_local, 'Overall number of rows with this number of empty cells', str('Number of empty cells in a row for tabel' + str(num_tabel)), str('hists/rows_table'+ str(num_tabel) + '.html'), 600, '#Missing Annotations in row', '#How often this amount is missing')
+    plt_bar(tabel_local_col, lbl_row_local, 'Overall number of col with this number of empty cells', str('Number of empty cells in a col for tabel' + str(num_tabel)), str('hists/col_table'+ str(num_tabel) + '.html'), 600, '#Missing Annotations in row', '#How often this amount is missing')
 
 
 # Makes a single plot in d new file for a given data set
-def plt_bar(ax, od, el, ll):
+def plt_bar(hist_tabel, lbl_list, ylabel, xlabel, filename, wigth, xl, yl):
     w = 0.2
 
-    rects    = ax.bar([d       for d in od.keys()], od.values(), w, ecolor='green', label="Entity + Literal")
-    rects_el = ax.bar([d + w   for d in el.keys()], el.values(), w, ecolor='blue', label="Entity")
-    rects_ll = ax.bar([d + 2*w for d in ll.keys()], ll.values(), w, ecolor='violet', label="Literal ")
+    output_file(filename)
 
-    legend()
+    palette = ["#c9d9d3", "#718dbf", "#e84d60"]
 
-    for rect in rects + rects_el + rects_ll:
-        height = rect.get_height()
-        ax.text(rect.get_x() + rect.get_width()/2., height + 0.05,'%d' % int(height),ha='center', va='bottom').set_fontsize(9)
-    for item in ax.get_xticklabels() + ax.get_yticklabels():
-        item.set_fontsize(12)
+    od = cl.OrderedDict(sorted(hist_tabel['m'].items()))
+    el = cl.OrderedDict(sorted(hist_tabel['m_el'].items()))
+    ll = cl.OrderedDict(sorted(hist_tabel['m_ll'].items()))
+
+    odl = [od[l] if l in od else 0 for l in sorted(lbl_list)]
+    ell = [el[l] if l in el else 0 for l in sorted(lbl_list)]
+    lll = [ll[l] if l in ll else 0 for l in sorted(lbl_list)] 
+    num = [str(s) for s in sorted(lbl_list)]
+
+    d = {'num': num, 'Entity + Literal': odl, 'Entity': ell, 'Literal': lll}
+
+    l = max(odl + ell + lll)
+
+    p = figure(x_range=num, y_range=(0,l+(l/4)), plot_height=350, plot_width=wigth, toolbar_location=None, tools="", x_axis_label=xl, y_axis_label=yl)
+
+    p.vbar(x=dodge('num', -0.25, range=p.x_range), top='Entity + Literal', width=0.1, source=d,
+       color="#c9d9d3", legend=value("Entity + Literal"))
+
+    p.vbar(x=dodge('num',  0.0,  range=p.x_range), top='Entity', width=0.1, source=d,
+       color="#718dbf", legend=value("Entity"))
+
+    p.vbar(x=dodge('num',  0.25, range=p.x_range), top='Literal', width=0.1, source=d,
+       color="#e84d60", legend=value("Literal"))
+
+    #p.x_range.range_padding = 0.1
+    p.xgrid.grid_line_color = None
+    p.legend.orientation = "horizontal"
+    p.legend.location = "top_left"
+
+    save(p)
+
+# Makes a single plot in d new file for a given data set
+def plt_bar2(hist_tabel, used, ylabel, xlabel, filename, wigth, xl, yl):
+    w = 0.2
+    output_file(filename)
+
+    gold = hist_tabel['gold']
+    pre = hist_tabel['pre']
+    
+    up = [u.replace('http://dbpedia.org/ontology/', '') for u in used]
+
+    goldl = [gold['http://dbpedia.org/ontology/'+l] if 'http://dbpedia.org/ontology/'+l in gold.keys() else 0 for l in up]
+    prel  = [pre['http://dbpedia.org/ontology/'+l]  if 'http://dbpedia.org/ontology/'+l in pre.keys()  else 0 for l in up]
+
+    data = {'up': up, 'Gold': goldl, 'Preprocessing': prel}
+
+    source = ColumnDataSource(data=data)
+
+    p = figure(x_range=up, plot_height=800, plot_width=wigth, toolbar_location=None, tools="",x_axis_label=xl, y_axis_label=yl)
+
+    p.vbar(x=dodge('up', -0.25, range=p.x_range), top='Gold', width=0.2, source=data, color="#c9d9d3", legend=value("Gold"))
+
+    p.vbar(x=dodge('up',  0.0,  range=p.x_range), top='Preprocessing', width=0.2, source=data, color="#718dbf", legend=value("Preprocessing"))
 
 
+    p.x_range.range_padding = 0.1
+    p.xgrid.grid_line_color = None
+    p.xaxis.major_label_orientation = 1
+    p.legend.orientation = "horizontal"
+    p.legend.location = "top_left"
 
-# Delets al columns that have no gold standart annotation
-def delCols(table, col):
-    for row in table:
-        j = 0
-        for i in range(0, len(col)):
-            if col[i]:
-                del row[j]
-            else:
-                j += 1
-    return table
+    save(p)
 
+props = [l.strip('\n') for l in io.open('properties_to_consider.txt', 'r', encoding='utf-8', errors='ignore')]
 
-
-# Delets all rows that have no gold standart annotation
-def delRows(t, row):
-    for col in row:
-        if col[0] != 'ng' or col[1] != 'ng':
-            return t+[row]
-    return t
-
-
+key_list = {'m':'ng', 'm_el':'ng_el', 'm_ll':'ng_ll'}
 
 # row_missing, row_missing_el, row_missing_ll
 hist_row = {'m':{0:0}, 'm_el':{0:0}, 'm_ll':{0:0}}
@@ -191,45 +227,46 @@ hist_row = {'m':{0:0}, 'm_el':{0:0}, 'm_ll':{0:0}}
 # col_missing, col_missing_el, col_missing_ll
 hist_col = {'m':{0:0}, 'm_el':{0:0}, 'm_ll':{0:0}}
 
-#1?
 num_tabel = 0
+num_found = 0
+found_tables = []
 
 # Lables for colums
 lbl_col = []
 # Lables for rows
 lbl_row = []
 
-props = [l.strip('\n') for l in io.open('properties_to_consider.txt', 'r', encoding='utf-8', errors='ignore')]
+def printTable(t):
+    print("Table Num:" , num_tabel)
+    for e in t:
+        print(e)
+    print('')
+
 
 def main():
     global num_tabel
-    # read from stdin, ignore encoding errors
     with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdin:
-        # iterate over input. Each line represents one table
         for json_line in stdin:
             try:
-                # parse json
                 table_data = json.loads(json_line)
-                # create Table object to work with
                 table = Table(table_data)
+
                 t = []
-                delCol = [True] * table.num_cols
+                col = [c.find_annotations(anno_task = 'PropertyLinking') for c in table.columns()]
+                
                 for row in table.rows():
-                    r = []
-                    i = 0
-                    for cell in row:
-                        # get EntityLinkning annotation from Gold Standard for this cell
-                        el = getEntity('gold-v2', 'preprocessing', cell)
-                        ll = getLiteral('preprocessing', cell)
-                        if el is not 'ng' or ll is not 'ng':
-                           delCol[i] = False
-                        r = r + [[el] + [ll]]
-                        i += 1
-                    t = delRows(t, r)
-                t = delCols(t, delCol)
-                #print(t)
-                #print(delCol, "\n")
-                if t != []:
+                    
+                    if row.find_annotations(anno_task='EntityLinking') is not []:
+                        i = 0
+                        r = []
+                        for cell in row:
+                            if col[i]:
+                                r = r + [[getEntity(cell)] + [getLiteral(cell, col, i)]]
+                                i += 1
+                        if r:
+                            t = t + [r]
+                
+                if t:
                     analyzeTable(t)
                 num_tabel += 1
 
@@ -237,41 +274,11 @@ def main():
             except JSONDecodeError:
                 pass
 
-    # Create histogramm 1
-    fig, ax_row = plt.subplots(figsize=(20,12))
+    # Create histogramm for rows
+    plt_bar(hist_row, lbl_col, 'Overall number of rows ', 'Number of empty cells in a row', 'hists/01_ov_rows.html', 4000, '#Missing Annotations in row', '#How often this amount is missing')
 
-    plt_bar(ax_row, cl.OrderedDict(sorted(hist_row['m'].items())), 
-                    cl.OrderedDict(sorted(hist_row['m_el'].items())), 
-                    cl.OrderedDict(sorted(hist_row['m_ll'].items())))
-
-    plt.xticks(range(len(lbl_col)), sorted(lbl_col))
-
-    ax_row.set_ylabel('Overall number of rows with this number of empty cells')
-    ax_row.set_xlabel('Number of empty cells in a row')
-
-    fig = plt.gcf()
-
-    plt.savefig('01_ov_rows.png')
-    plt.close()
-
-
-    # Create histogramm 2
-    fig, ax_col = plt.subplots(figsize=(20,12))
-
-    plt_bar(ax_col, cl.OrderedDict(sorted(hist_col['m'].items())), 
-                    cl.OrderedDict(sorted(hist_col['m_el'].items())), 
-                    cl.OrderedDict(sorted(hist_col['m_ll'].items())))
-
-    plt.xticks(range(len(lbl_row)), sorted(lbl_row))
-
-    ax_col.set_ylabel('Overall columns of rows with this number of empty cells')
-    ax_col.set_xlabel('Number of columns with an empty cell')
-
-    fig = plt.gcf()
-
-    plt.savefig('01_ov_cols.png')
-    plt.close()
-
+    # Create histogramm columns
+    plt_bar(hist_col, lbl_row, 'Overall number of cols', 'Number of empty cells in a col', 'hists/01_ov_cols.html', 4000, '#Missing Annotations in column', '#How often this amount is missing')
 
 if __name__ == "__main__":
     main()
