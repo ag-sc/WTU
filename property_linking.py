@@ -115,8 +115,8 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                 most_freq_uri = myTuple[0]
                 ourURIs = myTuple[1]
 
-                # insert an annotation with that most frequent uri to the current column
-                if(most_freq_uri != ''): column.annotations.append({'source': 'evaluation', 'task': 'PropertyLinking', 'property_uri': most_freq_uri})
+                # for future: insert an annotation with that most frequent uri to the current column
+                # if(most_freq_uri != ''): column.annotations.append({'source': 'evaluation', 'task': 'PropertyLinking', 'property_uri': most_freq_uri})
 
 
                 # compare the gold-annotation-uri to our most_freq_uri
