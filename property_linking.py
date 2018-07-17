@@ -15,6 +15,57 @@ table_no = 0
 
 
 
+
+
+
+def naiveMaximumCountMissingLLAnnos(column) -> (str, dict):
+    '''
+
+    :param column:
+    :return:
+    '''
+
+    # find all LiteralLinking-annotations in our column for each cell, also find if no LL exists
+    pl_annotations = []
+    for cell in column:
+        cellAnnotations = cell.find_annotations(anno_source='preprocessing', anno_task='LiteralLinking')
+        if cellAnnotations:
+            pl_annotations.extend(cellAnnotations)
+        else:
+            pl_annotations.append('noLLAnno') # no LL
+
+    # collect all property-uris from all the LiteralLinking-annotations
+    property_uris = []
+    for annotation in pl_annotations:
+        if(annotation == 'noLLAnno'):
+            property_uris.append('noLLAnno')
+        else:
+            uri = annotation['property_uri']
+            property_uris.append(uri)
+
+    # find out which uri does occur most in all the property_uris
+    counter = {}
+    for uri in property_uris:
+        if (uri in counter):
+            counter[uri] = (counter.get(uri)) + 1
+        else:
+            counter[uri] = 1
+
+    sorted_uris = (sorted(counter.items(), key=lambda x: x[1]))[::-1] # uri with highest value first
+    print('list of our uris: ' + str(sorted_uris))
+
+    most_freq_uri = max(counter, key=counter.get)  # the uri with the highest value
+    print('most_freq_uri: ' + most_freq_uri)
+
+    return (most_freq_uri, counter)
+
+
+
+
+
+
+
+
 # returns:
 # str: the most frequent URI of all cells in the column (empty str if no URIs in any cells in the column),
 # dict: key: all URIs we made in this column, value: amount of their occurrence
@@ -23,8 +74,7 @@ def naiveMaximum(column) -> (str, dict):
     # find all LiteralLinking-annotations in our column for each cell
     pl_annotations = []
     for cell in column:
-        for elem in cell.find_annotations(anno_task='LiteralLinking'):
-            pl_annotations.append(elem)
+        pl_annotations.extend(cell.find_annotations(anno_source='preprocessing', anno_task='LiteralLinking'))
 
     # collect all property-uris from all the LiteralLinking-annotations
     property_uris = []
@@ -51,6 +101,7 @@ def naiveMaximum(column) -> (str, dict):
         print("column has gold-uri, but we don't have any LL-annotations for any cell in this column.")
 
     return (most_freq_uri, counter)
+
 
 
 
@@ -111,7 +162,7 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                     continue
 
 
-                myTuple = naiveMaximum(column)
+                myTuple = naiveMaximumCountMissingLLAnnos(column) # or: naiveMaximum(column)
                 most_freq_uri = myTuple[0]
                 ourURIs = myTuple[1]
 
@@ -127,6 +178,10 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                     #column has gold-uri, but we don't have any LL-annotations for any cell in this column
                     total_no_LL_annos+=1
                     column_has_no_LL_anno+=1
+                elif(most_freq_uri == 'noLLAnno'):
+                    # column has gold-uri, and our most frequent uri was that we don't have a uri
+                    total_no_LL_annos += 1
+                    column_has_no_LL_anno += 1
                 else:
                     if (gold_uri in ourURIs.keys()):
                         print('We also have annotated some of our cells in this column with that gold-uri. But its not the most frequent one.')
