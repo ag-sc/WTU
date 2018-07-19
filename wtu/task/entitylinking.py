@@ -114,11 +114,15 @@ class EntityLinkingBackendCSV(EntityLinkingBackend):
             for row in csv_reader:
                 mention, uri, frequency = row
                 mention = preprocess_mention(mention)
-                uri = URI.parse(uri, 'dbr')
-                self.index[mention].append((uri, int(frequency)))
+                if mention:
+                    uri = URI.parse(uri, 'dbr')
+                    self.index[mention].append((uri, int(frequency)))
 
     def query(self, mention):
         mention = preprocess_mention(mention)
+
+        if not mention:
+            return []
 
         try:
             return self.index[mention]

@@ -285,6 +285,9 @@ class LiteralNormalization(Task):
 
         # iterate over all cells
         for cell in cellset:
+            if not cell.content:
+                continue
+
             # always add a 'plain' annotation
             cell.annotations.append({
                 'source': 'preprocessing',
