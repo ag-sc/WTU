@@ -20,8 +20,8 @@ def levenshtein_similarity(str_a, str_b):
 def preprocess_mention(mention):
     # lower case
     mention = mention.lower()
-    # remove parentheses/brackets
-    mention = re.sub(r'\([^)]*\)|\[[^]]*\]', '', mention)
+    # remove trailing parentheses/brackets
+    mention = re.sub(r'(?:\([^)]*\)|\[[^]]*\])\s*$', '', mention)
     # remove spaces
     mention = mention.replace(' ', '')
     # remove remaining punctuation
