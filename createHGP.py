@@ -66,7 +66,18 @@ def send_sparql_request_type(x:str)->list:
 
 
 
-
+# read relevant tables/rows from json file
+# {
+#    "<table number>": [<row number>, <row number>, ...],
+#    ...
+# }
+relevant_tables = {}
+if len(sys.argv) >= 2:
+    with io.open(sys.argv[1], 'r') as relevant_tables_fh:
+        try:
+            relevant_tables = json.load(relevant_tables_fh)
+        except:
+            print('Failed to read relevant tables file!')
 
 # read from stdin, ignore encoding errors
 with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdin:
@@ -76,6 +87,12 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
     # iterate over input. Each line represents one table
     for json_line in stdin:
 
+                    # skip irrelevant tables
+                    if relevant_tables and str(tableNo) not in relevant_tables:
+                        print('skipping table #{:d}'.format(tableNo))
+                        tableNo += 1
+                        continue
+
             #if tableNo==48: # create output files only for this table
                     # parse json
                     table_data = json.loads(json_line)
@@ -84,6 +101,13 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
 
                     # create hgp for each row
                     for row in table.rows():
+
+                        # skip irrelevant rows
+                        if relevant_tables:
+                            relevant_rows = relevant_tables[str(tableNo)]
+                            if row.row_idx not in relevant_rows:
+                                print('skipping row #{:d} in table #{:d}'.format(row.row_idx, tableNo))
+                                continue
 
                         # initialize hypothethis graph pattern (hgp) as empty set/list
                         hgp = []
