@@ -93,7 +93,6 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                         tableNo += 1
                         continue
 
-            #if tableNo==48: # create output files only for this table
                     # parse json
                     table_data = json.loads(json_line)
                     # create Table object to work with
@@ -174,7 +173,11 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                                 e = '<' + el_anno['resource_uri'] + '>'
                                 ebNode = eDict[e]
                                 p = '<' + annotation['property_uri'] + '>'
-                                l = '\"' + str(annotation['index_value']) + '\"^^<' + annotation['index_type'] + '>'
+
+                                if annotation['index_type'] == "":
+                                    l = '\"' + str(annotation['index_value']) + '\"'
+                                else:
+                                    l = '\"' + str(annotation['index_value']) + '\"^^<' + annotation['index_type'] + '>'
 
                                 if l not in lDict.keys():
                                     bNode = '_:b' + str(nodeNo)
