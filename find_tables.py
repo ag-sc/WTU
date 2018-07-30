@@ -83,7 +83,7 @@ def analyzeTable(table, g_col):
         #printTable(table)
         print("\n")
 
-        found_tables_with_rows = found_tables_with_rows + [{num_tabel:sorted(res_rows)}]
+        found_tables_with_rows[num_tabel] = sorted(res_rows)
 
 def printTableWithSelRows(t, rows, cols):
     print("Table:")
@@ -106,7 +106,7 @@ num_tabel = 0
 num_found = 0
 found_tables = []
 
-found_tables_with_rows = []
+found_tables_with_rows = {}
 
 def main():
     global num_tabel
@@ -141,7 +141,10 @@ def main():
                 pass
 
     print("Found Tables: ", found_tables, ", Number: ", num_found, "\n")
-    print(found_tables_with_rows)
+
+    with io.open('intresting_tables.json', 'w', encoding='utf-8', errors='ignore') as stdin:
+        json.dump(found_tables_with_rows, stdin)
+
 
 if __name__ == "__main__":
     main()
