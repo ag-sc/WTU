@@ -165,13 +165,17 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                                     lDict[literal] = bNodeL
                                     eWasDict[bNodeL] = literal
 
-                                    # append to hgp:  e  rdfs:label   l
-                                    bNodeL = lDict[literal]
-                                    hgp.extend(bNodeE + '\t' + '<http://www.w3.org/2000/01/rdf-schema#label>' + '\t' + bNodeL + ' .\n') #3
-
                                     # append to hgp:  l(=literal)   ex:col   c (= col number)
                                     c = '\"' + str(cell.col_idx) + '\"^^<http://www.w3.org/2001/XMLSchema#int>'
-                                    hgp.extend(bNodeL + '\t' + '<http://example.org/column>' + '\t' + c + ' .\n') #1
+                                    hgp.extend(bNodeL + '\t' + '<http://example.org/column>' + '\t' + c + ' .\n')  # 1
+
+                                # append to hgp:  e  rdfs:label   l
+                                bNodeL = lDict[literal]
+                                hgp.extend(bNodeE + '\t' + '<http://www.w3.org/2000/01/rdf-schema#label>' + '\t' + bNodeL + ' .\n') #3
+
+
+
+
 
 
                         ####################################################################
