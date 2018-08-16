@@ -129,6 +129,21 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                         ####################################################################
                         # EL
                         for cell in row:
+
+                            # fill entity dictionnairies also with the "literal"@en
+                            literal = '\"' + str(cell.content) + '\"@en'
+                            if literal not in lDict.keys():
+                                bNodeL = '_:b' + str(nodeNo)
+                                nodeNo += 1
+                                lDict[literal] = bNodeL
+                                eWasDict[bNodeL] = literal
+
+                            # append to hgp:  l(=literal)   ex:col   c (= col number)
+                            bNodeL = lDict[literal]
+                            c = '\"' + str(cell.col_idx) + '\"^^<http://www.w3.org/2001/XMLSchema#int>'
+                            hgp.extend(bNodeL + '\t' + '<http://example.org/column>' + '\t' + c + ' .\n')  # 1
+
+
                             for annotation in cell.find_annotations(anno_source='preprocessing', anno_task='EntityLinking'):
 
                                 e = '<' + annotation['resource_uri'] + '>'
@@ -154,17 +169,7 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                                         uri = '<'+uri+'>'
                                         hgp.extend(eDict[e] + '\t' + '<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>' + '\t' + uri + ' .\n') #2
 
-                                # fill entity dictionnairies also with the "literal"@en
-                                literal = '\"' + str(cell.content)+ '\"@en'
-                                if literal not in lDict.keys():
-                                    bNodeL = '_:b' + str(nodeNo)
-                                    nodeNo += 1
-                                    lDict[literal] = bNodeL
-                                    eWasDict[bNodeL] = literal
 
-                                    # append to hgp:  l(=literal)   ex:col   c (= col number)
-                                    c = '\"' + str(cell.col_idx) + '\"^^<http://www.w3.org/2001/XMLSchema#int>'
-                                    hgp.extend(bNodeL + '\t' + '<http://example.org/column>' + '\t' + c + ' .\n')  # 1
 
                                 # append to hgp:  e  rdfs:label   l
                                 bNodeL = lDict[literal]
