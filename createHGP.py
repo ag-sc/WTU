@@ -23,7 +23,11 @@ def send_sparql_request_entities(x:str, y:str)->list:
                           where {{ '\
                           + x + ' ?p1 ' + y + ' .} \
                           UNION { '\
-                          + y + ' ?p2 ' + y + ' .}}'}
+                          + y + ' ?p2 ' + x + ' .}}'}
+        print('')
+        print('x=',x,' y=',y)
+        print(param['query'])
+        print('')
         response = requests.get('https://dbpedia.org/sparql', params=param)
 
         if (response.text == '# Empty NT\n'):
@@ -93,7 +97,7 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                         tableNo += 1
                         continue
 
-                    # parse json
+                    # parse the table from the json
                     table_data = json.loads(json_line)
                     # create Table object to work with
                     table = Table(table_data)
@@ -108,11 +112,11 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                                 print('skipping row #{:d} in table #{:d}'.format(row.row_idx, tableNo))
                                 continue
 
-                        # initialize hypothethis graph pattern (hgp) as empty set/list
+                        # initialize hypothethis graph pattern (hgp) as empty list
                         hgp = []
-                        # Entity-Dictionnairy key:entity and value:blankNode
+                        # Entity-Dictionnairy that indicates which entity has which blank-node. key:entity-uri, value: blankNode
                         eDict = {}
-                        # Entity-Was-Dict key:blankNode and value:entity
+                        # Entity-Was-Dict that indicates which blank-node belongs to which entity-uri. key:blankNode and value:entity
                         eWasDict = {}
                         # Literal-Dictionnairy key:literal+type and value:blankNode
                         lDict = {}
@@ -120,6 +124,9 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                         lWasDict = {}
                         # indexing of the blank nodes
                         nodeNo = 1
+                        # dict that indicates which uri in which col occured: key:entity-Uri, value:list of colidx
+                        eColDict = {}
+
 
 
                         ####################################################################
@@ -127,8 +134,17 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                         for cell in row:
                             for annotation in cell.find_annotations(anno_source='preprocessing', anno_task='EntityLinking'):
 
-                                #fill the dictionnairies in whih the blank_nodes for entities are encoded and decoded
                                 e = '<' + annotation['resource_uri'] + '>'
+
+                                #save which entity-annotation occurred in which column
+                                if e in eColDict:
+                                    listOfColIdx = eColDict[e]
+                                    listOfColIdx.append(cell.col_idx)
+                                    eColDict[e] = listOfColIdx
+                                else:
+                                    eColDict[e] = [cell.col_idx]
+
+                                #fill the dictionnairies in which the blank_nodes for entities are encoded and decoded
                                 if e not in eDict.keys():
                                     bNodeE = '_:b' + str(nodeNo)
                                     nodeNo += 1
@@ -139,9 +155,9 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                                     typeUris = send_sparql_request_type(e)
                                     for uri in typeUris:
                                         uri = '<'+uri+'>'
-                                        hgp.append(eDict[e] + '\t' + '<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>' + '\t' + uri + ' .\n') #2
+                                        hgp.extend(eDict[e] + '\t' + '<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>' + '\t' + uri + ' .\n') #2
 
-                                # fill entity ditionnairies also with the "literal"@en
+                                # fill entity dictionnairies also with the "literal"@en
                                 literal = '\"' + str(cell.content)+ '\"@en'
                                 if literal not in lDict.keys():
                                     bNodeL = '_:b' + str(nodeNo)
@@ -151,11 +167,11 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
 
                                     # append to hgp:  e  rdfs:label   l
                                     bNodeL = lDict[literal]
-                                    hgp.append(bNodeE + '\t' + '<http://www.w3.org/2000/01/rdf-schema#label>' + '\t' + bNodeL + ' .\n') #3
+                                    hgp.extend(bNodeE + '\t' + '<http://www.w3.org/2000/01/rdf-schema#label>' + '\t' + bNodeL + ' .\n') #3
 
                                     # append to hgp:  l(=literal)   ex:col   c (= col number)
                                     c = '\"' + str(cell.col_idx) + '\"^^<http://www.w3.org/2001/XMLSchema#int>'
-                                    hgp.append(bNodeL + '\t' + '<http://example.org/column>' + '\t' + c + ' .\n') #1
+                                    hgp.extend(bNodeL + '\t' + '<http://example.org/column>' + '\t' + c + ' .\n') #1
 
 
                         ####################################################################
@@ -179,32 +195,67 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                                 else:
                                     l = '\"' + str(annotation['index_value']) + '\"^^<' + annotation['index_type'] + '>'
 
-                                if l not in lDict.keys():
+                                if annotation['index_value'] not in lDict.keys():
                                     bNode = '_:b' + str(nodeNo)
                                     nodeNo += 1
-                                    lDict[l] = bNode
+                                    lDict[annotation['index_value']] = bNode
                                     lWasDict[bNode] = l
 
-                                # blank p blank
-                                hgp.append(ebNode + '\t' + p + '\t' + lDict[l] + ' .\n') #4
+                                hgp.extend(ebNode + '\t' + p + '\t' + lDict[annotation['index_value']] + ' .\n') #4
                                 # for every LL-annotation in the row, add the triple (l, ex:column, c) to hgp
                                 c = '\"' + str(cell.col_idx) + '\"^^<http://www.w3.org/2001/XMLSchema#int>'
-                                hgp.append(lDict[l] + '\t' + '<http://example.org/column>' + '\t' + c + ' .\n') #5
+                                hgp.extend(lDict[annotation['index_value']] + '\t' + '<http://example.org/column>' + '\t' + c + ' .\n') #5
 
 
                         ####################################################################
-                        # create (x p y)
-                        entity_combis = list(itertools.combinations_with_replacement(eDict.keys(), r=2))  # [A,B,C,D] -> [(A,A), (A,B), (AC), (A,D), (B,B), (B,C), (B,D), (C,C), (C,D), (D,D)]
+                        # create (e1 p e2)
 
-                        for combi in entity_combis:
-                            x = combi[0]
-                            y = combi[1]
+                        print('----------------------------------------')
+                        print('all_entity_combis = ',list(itertools.combinations(eColDict.keys(), r=2)))
 
-                            # add triples of the form (x p y) to hgp
-                            list_of_triples = send_sparql_request_entities(x, y)
+                        # find out for which entity-combis a dbpedia request will be sent: only for those entities/uris, which were not annotated in the same column
+                        interesting_entity_combis = []
+                        # start with all combis (e1,e2) where  e=<uri>
+                        all_entity_combis = list(itertools.combinations(eColDict.keys(), r=2))  # [A,B,C,D] -> [(A,B), (A,C), (A,D), (B,C), (B,D), (C,D)]
+                        for combi in all_entity_combis:
+                            colidx_e1 = eColDict[combi[0]]
+                            colidx_e2 = eColDict[combi[1]]
+
+                            print('')
+                            print('combi: ', combi)
+                            print('intersection: ', list(set(colidx_e1).intersection(colidx_e2)))
+
+
+                            if not list(set(colidx_e1).intersection(colidx_e2)): # combi[0]=e1 and combi[1]=e2 are not annotations in the same cell
+                                interesting_entity_combis.append(combi)
+
+                                print('          no intersection, appended combi to interesting_entity_combies: ',interesting_entity_combis)
+
+
+                        # check for all combis with itself [(A,A), (B,B), (C,C), (D,D)]
+                        for e, colidx in eColDict.items():
+                            if (len(colidx)>1): # check if uri was annotated in more than one column
+
+                                print('len of colidx for entity ',e,': ',len(colidx))
+                                print('appended e,e to interesting combis: ',interesting_entity_combis)
+
+                                interesting_entity_combis.append((e,e))
+
+                        print('')
+                        print('final interesting list for which sparql request will be sent: ',interesting_entity_combis)
+                        print('')
+                        print('')
+
+
+                        # send dbpedia requests for the intersting combis and add the results to the hgp
+                        for combi in interesting_entity_combis:
+                            e1 = combi[0]
+                            e2 = combi[1]
+                            # add triples of the form (e1 p e2) to hgp
+                            list_of_triples = send_sparql_request_entities(e1, e2)
                             if list_of_triples:
-                                #replace x,y with blank node
-                                list_of_triples = [triple.replace(x, eDict[x]).replace(y, eDict[y]) for triple in list_of_triples]
+                                #replace e1,e2 with their blank nodes
+                                list_of_triples = [triple.replace(e1, eDict[e1]).replace(e2, eDict[e2]) for triple in list_of_triples]
                                 hgp.extend(list_of_triples)
 
 
@@ -214,7 +265,7 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                         for key in eWasDict.keys():
                             e = eWasDict[key]
                             bNode = key
-                            hgp.append(bNode + '\t' + '<http://example.org/was>' + '\t' + e + ' .\n') #8
+                            hgp.extend(bNode + '\t' + '<http://example.org/was>' + '\t' + e + ' .\n') #8
 
 
                         ####################################################################
@@ -222,7 +273,7 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
                         for key in lWasDict.keys():
                             l = lWasDict[key]
                             bNode = key
-                            hgp.append(bNode + '\t' + '<http://example.org/was>' + '\t' + l + ' .\n') #9
+                            hgp.extend(bNode + '\t' + '<http://example.org/was>' + '\t' + l + ' .\n') #9
 
 
                         ####################################################################
