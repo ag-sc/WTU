@@ -24,10 +24,7 @@ def send_sparql_request_entities(x:str, y:str)->list:
                           + x + ' ?p1 ' + y + ' .} \
                           UNION { '\
                           + y + ' ?p2 ' + x + ' .}}'}
-        print('')
-        print('x=',x,' y=',y)
-        print(param['query'])
-        print('')
+
         response = requests.get('https://dbpedia.org/sparql', params=param)
 
         if (response.text == '# Empty NT\n'):
@@ -213,42 +210,23 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
 
                         ####################################################################
                         # create (e1 p e2)
-
-                        print('----------------------------------------')
-                        print('all_entity_combis = ',list(itertools.combinations(eColDict.keys(), r=2)))
-
                         # find out for which entity-combis a dbpedia request will be sent: only for those entities/uris, which were not annotated in the same column
                         interesting_entity_combis = []
+
                         # start with all combis (e1,e2) where  e=<uri>
                         all_entity_combis = list(itertools.combinations(eColDict.keys(), r=2))  # [A,B,C,D] -> [(A,B), (A,C), (A,D), (B,C), (B,D), (C,D)]
                         for combi in all_entity_combis:
                             colidx_e1 = eColDict[combi[0]]
                             colidx_e2 = eColDict[combi[1]]
 
-                            print('')
-                            print('combi: ', combi)
-                            print('intersection: ', list(set(colidx_e1).intersection(colidx_e2)))
-
-
                             if not list(set(colidx_e1).intersection(colidx_e2)): # combi[0]=e1 and combi[1]=e2 are not annotations in the same cell
                                 interesting_entity_combis.append(combi)
-
-                                print('          no intersection, appended combi to interesting_entity_combies: ',interesting_entity_combis)
-
 
                         # check for all combis with itself [(A,A), (B,B), (C,C), (D,D)]
                         for e, colidx in eColDict.items():
                             if (len(colidx)>1): # check if uri was annotated in more than one column
-
-                                print('len of colidx for entity ',e,': ',len(colidx))
-                                print('appended e,e to interesting combis: ',interesting_entity_combis)
-
                                 interesting_entity_combis.append((e,e))
 
-                        print('')
-                        print('final interesting list for which sparql request will be sent: ',interesting_entity_combis)
-                        print('')
-                        print('')
 
 
                         # send dbpedia requests for the intersting combis and add the results to the hgp
