@@ -265,7 +265,7 @@ with io.open(sys.stdin.fileno(), 'r', encoding='utf-8', errors='ignore') as stdi
 
                         ####################################################################
                         # save HGP in file (1 HGP for each row in each table)
-                        fileName = 'Table_' + str(tableNo) + '_Row_' + str(row.row_idx) + '_HG.txt'
+                        fileName = 'Table_' + str(tableNo) + '_Row_' + str(row.row_idx) + '_HGP.nt'
                         outFile = open(fileName, 'w')
                         outFile.writelines(hgp)
                         outFile.close()
